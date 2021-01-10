@@ -1,4 +1,4 @@
-package explore_test;
+package membrane;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;

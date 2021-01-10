@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -31,12 +31,13 @@ public class Pathing {
     }
     public static void target(MapLocation target, int chase_flee_sign) throws GameActionException {  // chase_flee_sign is 1 to chase target and -1 to flee target
     	target = get_closer_target(target, Math.min(2, Math2.length(Info.loc, target)-1));
+    	rc.setIndicatorDot(target, 255, 0, 0);
     	Direction best_dir = null;
     	double best_cost = Integer.MAX_VALUE;
     	for (Direction dir:Direction.cardinalDirections()) {
     		if (rc.canMove(dir)) {
     			MapLocation adjacent = Info.loc.add(dir);
-    			double cost = 1/rc.sensePassability(adjacent) + chase_flee_sign*Math2.length(adjacent, target);
+    			double cost = 1/rc.sensePassability(adjacent) + chase_flee_sign*(Math2.length(adjacent, target)+0.05*adjacent.distanceSquaredTo(target));
     			if (best_dir==null || cost<best_cost) {
     				best_dir = dir;
     				best_cost = cost;
@@ -46,7 +47,7 @@ public class Pathing {
     	for (Direction dir:Math2.DIAGONAL_DIRECTIONS) {
     		if (rc.canMove(dir)) {
     			MapLocation adjacent = Info.loc.add(dir);
-    			double cost = 1/rc.sensePassability(adjacent) + chase_flee_sign*Math2.length(adjacent, target) - 0.001;
+    			double cost = 1/rc.sensePassability(adjacent) + chase_flee_sign*(Math2.length(adjacent, target)+0.05*adjacent.distanceSquaredTo(target));
     			if (best_dir==null || cost<best_cost) {
     				best_dir = dir;
     				best_cost = cost;
@@ -85,7 +86,7 @@ public class Pathing {
 	    	for (Direction dir:Direction.cardinalDirections()) {
 				MapLocation adjacent = target.add(dir);
 	    		if (rc.canSenseLocation(adjacent)) {
-	    			double cost = 1/rc.sensePassability(adjacent) + Math2.length(adjacent, Info.loc) - 0.001;
+	    			double cost = 1/rc.sensePassability(adjacent) + Math2.length(adjacent, Info.loc)-0.05*adjacent.distanceSquaredTo(target);
 	    			if (best_dir==null || cost<best_cost) {
 	    				best_dir = dir;
 	    				best_cost = cost;
@@ -95,7 +96,7 @@ public class Pathing {
 	    	for (Direction dir:Math2.DIAGONAL_DIRECTIONS) {
 				MapLocation adjacent = target.add(dir);
 	    		if (rc.canSenseLocation(adjacent)) {
-	    			double cost = 1/rc.sensePassability(adjacent) + Math2.length(adjacent, Info.loc);
+	    			double cost = 1/rc.sensePassability(adjacent) + Math2.length(adjacent, Info.loc)-0.05*adjacent.distanceSquaredTo(target);
 	    			if (best_dir==null || cost<best_cost) {
 	    				best_dir = dir;
 	    				best_cost = cost;

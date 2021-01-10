@@ -1,4 +1,4 @@
-package explore_test;
+package membrane;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -27,12 +27,12 @@ public class Politician {
 //			}
 //		}
     	if (Info.enemy_ecs.length>0) {
-    		Flag.is_gas = false;
+    		Phase.is_gas = false;
     		RobotInfo closest = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
     		Pathing.stick(closest.location);
     	}
     	if (Action.can_still_move &&  Info.neutral_ecs.length>0) {  // try to convert neutral ecs
-    		Flag.is_gas = false;
+    		Phase.is_gas = false;
     		RobotInfo closest = Info.closest_robot(Team.NEUTRAL, RobotType.ENLIGHTENMENT_CENTER);
     		if (!Info.loc.isWithinDistanceSquared(closest.location, RobotType.POLITICIAN.actionRadiusSquared)) {
     			Pathing.stick(closest.location);
@@ -60,9 +60,29 @@ public class Politician {
         		Pathing.stick(closest.location);
     		}
     	}
-    	if (Action.can_still_move) {
-    		Flag.is_gas = true;
+    	if (Phase.is_gas && Info.touching_membrane) {
+    		Direction membrane_direction = null;
+    		for (Direction dir:Math2.UNIT_DIRECTIONS) {
+    			int i = dir.dx+1;
+    			int j = dir.dy+1;
+    			RobotInfo robot = Info.adjacent_robots[i][j];
+    			if (robot!=null) {
+    				if (robot.team==Info.friendly && (rc.getFlag(robot.ID))>>23==1 && (rc.getFlag(robot.ID)>>15)%4!=3) {
+    					membrane_direction = dir;
+    					break;
+    				}
+    			}
+    		}
+    		Phase.condense(membrane_direction, 1);
+    	}
+    	if (Phase.is_gas && !rc.onTheMap(Info.loc.add(Direction.EAST))) {
+    		Phase.condense(Direction.EAST, 1);
+    	}
+    	if (Phase.is_gas && Action.can_still_move) {
     		Gas.attack();
+    	}
+    	if (Phase.is_membrane && Action.can_still_move) {
+    		Membrane.heal();
     	}
 		Flag.set_default_patrol();
     }

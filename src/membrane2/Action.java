@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -35,5 +35,10 @@ public class Action {
 		can_still_move = false;
 		ECInfo.ids = new IntCycler(rc.senseRobotAtLocation(Info.loc.add(dir)).ID, ECInfo.ids);
 		ECInfo.last_build_direction = dir;
+		if (type==RobotType.SLANDERER) {
+			System.out.println("BUILT SLANDERER FOR " + conviction + " CONVICTION");
+			ECInfo.embezzle_incomes[Info.round_num%GameConstants.EMBEZZLE_NUM_ROUNDS] = Math2.get_embezzle_income(conviction);
+			ECInfo.target_stockpile -= conviction;
+		}
 	}
 }

@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -21,14 +21,16 @@ public class Flag {
 	public static RobotController rc;
 	public static int[] bits = new int[] {24};
 	public static int[] values = new int[] {0};
-	public static boolean is_gas = false;
 	
 	public static void set_default_patrol() throws GameActionException {
-		bits = new int[] {23-2*LOG_MAX_APPROX_DIST, LOG_MAX_APPROX_DIST, LOG_MAX_APPROX_DIST, 1};
-		values = new int[] {0,
+		bits = new int[] {1, 3, 3, 7, 1, LOG_MAX_APPROX_DIST, 1};
+		values = new int[] {(Phase.is_membrane)?1:0,
+							Math.max(0, Membrane.layer_num),
+							Membrane.push_signal,
+							0,
+							(Info.type==RobotType.SLANDERER)?1:0,
 							Info.approx_enemy_dist,
-							Info.approx_home_dist,
-							(is_gas)?1:0
+							(Phase.is_gas)?1:0
 							};
 	}
 	
@@ -41,7 +43,6 @@ public class Flag {
 		rc.setFlag(encode(bits, values));
 		bits = new int[] {24};
 		values = new int[] {0};
-		is_gas = false;
 	}
 	public static int encode(int[] bits, int[] values) {
 		int flag = 0;

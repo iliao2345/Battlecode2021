@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
@@ -54,13 +54,13 @@ public class Info {
 	public static int id;
 	public static int round_num;
 	public static int conviction;
-	public static int approx_home_dist = 0;  // starts from 127 and decreases to 0
 	public static int approx_enemy_dist = 0;  // starts from 127 and decreases to 0  // muckrakers don't count
 	public static double tile_cost;
-	public static int passive_income;
-	public static boolean see_farther_friendly_unit = false;  // true iff you can see a friendly unit which is farther from the enemy than self
+	public static boolean see_farther_gas_unit = false;  // true iff you can see a friendly unit which is farther from the enemy than self
 	public static double empower_buff = 1;  // true iff you can see a friendly unit which is farther from the enemy than self
 	public static double enemy_empower_buff = 1;  // true iff you can see a friendly unit which is farther from the enemy than self
+	public static RobotInfo[][] adjacent_robots;  // adjacent_robots[1][1] is undefined
+	public static boolean[][] on_map;  // on_map[1][1] is undefined
 	
 	public static void initialize(RobotController rc) {
 		Action.rc = rc;
@@ -71,7 +71,9 @@ public class Info {
 		Pathing.rc = rc;
 		Politician.rc = rc;
 		Slanderer.rc = rc;
+		Phase.rc = rc;
 		Gas.rc = rc;
+		Membrane.rc = rc;
 		friendly = rc.getTeam();
 		if (friendly==Team.A) {enemy=Team.B;}
 		if (friendly==Team.B) {enemy=Team.A;}
@@ -86,6 +88,7 @@ public class Info {
 			ECInfo.initialize(rc);
 		}
 		id = rc.getID();
+		Phase.is_gas = rc.getType()!=RobotType.SLANDERER;
 	}
 	
 	public static void update() throws GameActionException {
@@ -120,8 +123,8 @@ public class Info {
 			}
 		}
 		sensable_robots = rc.senseNearbyRobots();
-		if (sensable_robots.length>30) {sensable_robots = rc.senseNearbyRobots(17);}
-		if (sensable_robots.length>30) {sensable_robots = rc.senseNearbyRobots(8);}
+		if (sensable_robots.length>60 && type!=RobotType.SLANDERER) {sensable_robots = rc.senseNearbyRobots(17);}
+		else if (sensable_robots.length>40 && type==RobotType.SLANDERER) {sensable_robots = rc.senseNearbyRobots(12);}
 		int n_friendly_politicians = 0;
 		int n_friendly_slanderers = 0;
 		int n_friendly_muckrakers = 0;
@@ -135,13 +138,26 @@ public class Info {
 			if (robot.getTeam()==friendly) {
 				switch (robot.getType()) {
 				case POLITICIAN:
-					n_friendly_politicians++;
+					if ((rc.getFlag(robot.ID)>>9)%2==1) {n_friendly_slanderers++;}
+					else {
+						n_friendly_politicians++;
+//						int flag = rc.getFlag(robot.ID);
+//						if ((flag>>23)==1) {
+//							int push_signal = (flag>>17)%8;
+//							rc.setIndicatorDot(robot.location, Math.max(255-64*push_signal, 0), 0, Math.max(64*push_signal-255, 0));
+//						}
+					}
 					break;
 				case SLANDERER:
 					n_friendly_slanderers++;
 					break;
 				case MUCKRAKER:
 					n_friendly_muckrakers++;
+//					int flag = rc.getFlag(robot.ID);
+//					if ((flag>>23)==1) {
+//						int push_signal = (flag>>17)%8;
+//						rc.setIndicatorDot(robot.location, Math.max(255-64*push_signal, 0), 0, Math.max(64*push_signal-255, 0));
+//					}
 					break;
 				case ENLIGHTENMENT_CENTER:
 					n_friendly_ecs++;
@@ -186,25 +202,48 @@ public class Info {
 		n_enemy_muckrakers = 0;
 		n_enemy_ecs = 0;
 		n_neutral_ecs = 0;
+		tile_cost = 1/rc.sensePassability(loc);
+		approx_enemy_dist = Math.max(approx_enemy_dist-1, 0);
+		see_farther_gas_unit = false;
 		for (RobotInfo robot:sensable_robots) {
 			if (robot.getTeam()==friendly) {
 				switch (robot.getType()) {
-				case POLITICIAN:
-					friendly_politicians[n_friendly_politicians] = robot;
-					n_friendly_politicians++;
+				case POLITICIAN: {
+					int flag = rc.getFlag(robot.getID());
+					if ((flag>>9)%2==1) {
+						friendly_slanderers[n_friendly_slanderers] = robot;
+						n_friendly_slanderers++;
+					}
+					else {
+						friendly_politicians[n_friendly_politicians] = robot;
+						n_friendly_politicians++;
+						int robot_enemy_dist = (flag>>1)%Flag.MAX_APPROX_DIST_PLUS_ONE;
+						int additional_cost = (int) (tile_cost*(Math2.length(loc, robot.location)+1));
+						if (robot_enemy_dist-additional_cost>approx_enemy_dist) {approx_enemy_dist = robot_enemy_dist-additional_cost;}
+						if (robot_enemy_dist<approx_enemy_dist && flag%2==1) {see_farther_gas_unit = true;}
+					}
 					break;
-				case SLANDERER:
+				}
+				case SLANDERER: {
 					friendly_slanderers[n_friendly_slanderers] = robot;
 					n_friendly_slanderers++;
 					break;
-				case MUCKRAKER:
+				}
+				case MUCKRAKER: {
 					friendly_muckrakers[n_friendly_muckrakers] = robot;
 					n_friendly_muckrakers++;
+					int flag = rc.getFlag(robot.getID());
+					int robot_enemy_dist = (flag>>1)%Flag.MAX_APPROX_DIST_PLUS_ONE;
+					int additional_cost = (int) (tile_cost*(Math2.length(loc, robot.location)+1));
+					if (robot_enemy_dist-additional_cost>approx_enemy_dist) {approx_enemy_dist = robot_enemy_dist-additional_cost;}
+					if (robot_enemy_dist<approx_enemy_dist && flag%2==1) {see_farther_gas_unit = true;}
 					break;
-				case ENLIGHTENMENT_CENTER:
+				}
+				case ENLIGHTENMENT_CENTER: {
 					friendly_ecs[n_friendly_ecs] = robot;
 					n_friendly_ecs++;
 					break;
+				}
 				}
 			}
 			else if (robot.getTeam()==enemy) {
@@ -247,60 +286,41 @@ public class Info {
 		Action.acted = false;
 		Action.can_still_move = true;
 		conviction = rc.getConviction();
-		tile_cost = 1/rc.sensePassability(loc);
-		approx_home_dist = Math.max(approx_home_dist-1, 0);
-		approx_enemy_dist = Math.max(approx_enemy_dist-1, 0);
-		see_farther_friendly_unit = false;
-		for (RobotInfo robot:friendly_politicians) {
-			int flag = rc.getFlag(robot.getID());
-			int robot_enemy_dist = (flag>>Flag.LOG_MAX_APPROX_DIST_PLUS_ONE)%Flag.MAX_APPROX_DIST_PLUS_ONE;
-			int robot_home_dist = (flag>>1)%Flag.MAX_APPROX_DIST_PLUS_ONE;
-			int additional_cost = (int) (tile_cost*(Math2.length(loc, robot.location)+1));
-			if (robot_home_dist-additional_cost>approx_home_dist) {approx_home_dist = robot_home_dist-additional_cost;}
-			if (robot_enemy_dist-additional_cost>approx_enemy_dist) {approx_enemy_dist = robot_enemy_dist-additional_cost;}
-			if (robot_enemy_dist<approx_enemy_dist) {see_farther_friendly_unit = true;}
-		}
-		for (RobotInfo robot:friendly_muckrakers) {
-			int flag = rc.getFlag(robot.getID());
-			int robot_enemy_dist = (flag>>Flag.LOG_MAX_APPROX_DIST_PLUS_ONE)%Flag.MAX_APPROX_DIST_PLUS_ONE;
-			int robot_home_dist = (flag>>1)%Flag.MAX_APPROX_DIST_PLUS_ONE;
-			int additional_cost = (int) (tile_cost*(Math2.length(loc, robot.location)+1));
-			if (robot_home_dist-additional_cost>approx_home_dist) {approx_home_dist = robot_home_dist-additional_cost;}
-			if (robot_enemy_dist-additional_cost>approx_enemy_dist) {approx_enemy_dist = robot_enemy_dist-additional_cost;}
-			if (robot_enemy_dist<approx_enemy_dist) {see_farther_friendly_unit = true;}
-		}
-		closest_enemy_politician = closest_robot(enemy, RobotType.POLITICIAN);
-		closest_enemy_slanderer = closest_robot(enemy, RobotType.SLANDERER);
-		closest_enemy_ec = closest_robot(enemy, RobotType.ENLIGHTENMENT_CENTER);
-		if (closest_enemy_politician!=null) {
-			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_enemy_politician.location));
-			if (Flag.MAX_APPROX_DIST-additional_cost>approx_enemy_dist) {approx_enemy_dist = Flag.MAX_APPROX_DIST-additional_cost;}
-		}
-		if (closest_enemy_slanderer!=null) {
-			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_enemy_slanderer.location));
-			if (Flag.MAX_APPROX_DIST-additional_cost>approx_enemy_dist) {approx_enemy_dist = Flag.MAX_APPROX_DIST-additional_cost;}
-		}
-		if (closest_enemy_ec!=null) {
-			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_enemy_ec.location));
-			if (Flag.MAX_APPROX_DIST-additional_cost>approx_enemy_dist) {approx_enemy_dist = Flag.MAX_APPROX_DIST-additional_cost;}
-		}
-		closest_friendly_ec = closest_robot(friendly, RobotType.ENLIGHTENMENT_CENTER);
-		closest_friendly_slanderer = closest_robot(friendly, RobotType.SLANDERER);
-		if (closest_friendly_ec!=null) {
-			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_friendly_ec.location));
-			if (Flag.MAX_APPROX_DIST-additional_cost>approx_home_dist) {approx_home_dist = Flag.MAX_APPROX_DIST-additional_cost;}
-		}
-		if (closest_friendly_slanderer!=null) {
-			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_friendly_slanderer.location));
-			if (Flag.MAX_APPROX_DIST-additional_cost>approx_home_dist) {approx_home_dist = Flag.MAX_APPROX_DIST-additional_cost;}
-		}
-		passive_income = (int) Math.ceil(GameConstants.PASSIVE_INFLUENCE_RATIO_ENLIGHTENMENT_CENTER*Math.sqrt(round_num));
+//		closest_enemy_politician = closest_robot(enemy, RobotType.POLITICIAN);
+//		closest_enemy_slanderer = closest_robot(enemy, RobotType.SLANDERER);
+//		closest_enemy_ec = closest_robot(enemy, RobotType.ENLIGHTENMENT_CENTER);
+//		if (closest_enemy_politician!=null) {
+//			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_enemy_politician.location));
+//			if (Flag.MAX_APPROX_DIST-additional_cost>approx_enemy_dist) {approx_enemy_dist = Flag.MAX_APPROX_DIST-additional_cost;}
+//		}
+//		if (closest_enemy_slanderer!=null) {
+//			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_enemy_slanderer.location));
+//			if (Flag.MAX_APPROX_DIST-additional_cost>approx_enemy_dist) {approx_enemy_dist = Flag.MAX_APPROX_DIST-additional_cost;}
+//		}
+//		if (closest_enemy_ec!=null) {
+//			int additional_cost = (int) (tile_cost*Math2.length(loc, closest_enemy_ec.location));
+//			if (Flag.MAX_APPROX_DIST-additional_cost>approx_enemy_dist) {approx_enemy_dist = Flag.MAX_APPROX_DIST-additional_cost;}
+//		}
 		empower_buff = rc.getEmpowerFactor(Info.friendly, 0);
 		enemy_empower_buff = rc.getEmpowerFactor(Info.friendly, 0);
+		on_map = new boolean[3][3];
+		adjacent_robots = new RobotInfo[3][3];
+		for (Direction dir:Math2.UNIT_DIRECTIONS) {
+			if (rc.onTheMap(Info.loc.add(dir))) {
+				int i = dir.dx+1;
+				int j = dir.dy+1;
+				on_map[i][j] = true;
+				RobotInfo robot = rc.senseRobotAtLocation(Info.loc.add(dir));
+				adjacent_robots[i][j] = robot;
+			}
+		}
 		
 		// This should always be last no matter what is added above
 		if (type==RobotType.ENLIGHTENMENT_CENTER) {
 			ECInfo.update();
+		}
+		if (type==RobotType.POLITICIAN || type==RobotType.MUCKRAKER) {
+			Membrane.update();
 		}
 	}
 	

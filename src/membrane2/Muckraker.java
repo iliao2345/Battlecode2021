@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -17,26 +17,35 @@ public class Muckraker {
 
     public static void act() throws GameActionException {
     	if (!Action.acted && Info.enemy_slanderers.length>0) {
-    		Flag.is_gas = false;
+    		Phase.is_gas = false;
+    		Phase.is_membrane = false;
     		RobotInfo closest = Info.closest_robot(Info.enemy, RobotType.SLANDERER);
     		if (Info.loc.distanceSquaredTo(closest.location)<=RobotType.MUCKRAKER.actionRadiusSquared) {
     			Action.expose(closest);
-    			rc.setIndicatorLine(Info.loc, closest.location, 255, 0, 0);
     		}
     		else if (Action.can_still_move) {
     			Pathing.target(closest.location, 1);
-    			rc.setIndicatorLine(Info.loc, closest.location, 128, 0, 0);
     		}
     	}
     	if (Action.can_still_move && Info.enemy_ecs.length>0) {
-    		Flag.is_gas = false;
+    		Phase.is_gas = false;
+    		Phase.is_membrane = false;
     		RobotInfo closest = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
     		Pathing.stick(closest.location);
     	}
-    	if (Action.can_still_move) {
-    		Flag.is_gas = true;
-    		rc.setIndicatorDot(Info.loc, 255,255,255);
+    	if (Phase.is_gas && Membrane.touching_membrane) {
+    		Phase.condense();
+    	}
+    	if (Phase.is_gas && Action.can_still_move) {
     		Gas.attack();
+    	}
+    	if (Phase.is_membrane && Action.can_still_move) {
+    		if (Membrane.push_signal>0) {
+    			Membrane.advance();
+    		}
+    		else {
+        		Membrane.heal();
+    		}
     	}
 		Flag.set_default_patrol();
     }

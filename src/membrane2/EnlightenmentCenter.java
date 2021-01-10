@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -37,12 +37,7 @@ public class EnlightenmentCenter {
 				}
 			}
 			if (space_to_build) {
-				int conviction = next_conviction();
-				RobotType build_type = RobotType.MUCKRAKER;
-				if (conviction>33 && Math.random()<0.6) {
-					build_type = RobotType.POLITICIAN;
-				}
-				Action.buildRobot(build_type, ECInfo.last_build_direction, conviction);
+				build_distribution(ECInfo.last_build_direction);
 			}
 		}
     }
@@ -50,14 +45,24 @@ public class EnlightenmentCenter {
     public static void pause() throws GameActionException {
 		Flag.set_ec();
     }
-	public static int next_conviction() throws GameActionException {
-		ECInfo.last_build_power++;
-		int conviction = Math2.fibonacci(ECInfo.last_build_power);
-		if (conviction*Math2.FIBONACCI_SUM_RATIO>Info.passive_income*ECInfo.last_build_power*Info.tile_cost*RobotType.ENLIGHTENMENT_CENTER.actionCooldown) {
-			ECInfo.last_build_power = 0;
-			conviction = Math2.fibonacci(ECInfo.last_build_power);
+	public static void build_distribution(Direction dir) throws GameActionException {
+		double income = ECInfo.total_income*RobotType.ENLIGHTENMENT_CENTER.actionCooldown/Info.tile_cost;
+		if (Info.round_num<2) {
+			Action.buildRobot(RobotType.SLANDERER, dir, Math2.embezzle_floor(Info.conviction));
+			return;
 		}
-		return conviction;
+		int spare_funds = Info.conviction-ECInfo.target_stockpile;
+		if (spare_funds > 20) {
+			Action.buildRobot(RobotType.POLITICIAN, dir, 20);
+			return;
+		}
+		if (ECInfo.embezzle_income==0 && Info.conviction>ECInfo.target_stockpile+2) {
+			int conviction = Math2.embezzle_floor((int) (ECInfo.target_stockpile));
+			if (conviction>0) {
+				Action.buildRobot(RobotType.SLANDERER, dir, conviction);
+				return;
+			}
+		}
+		Action.buildRobot(RobotType.MUCKRAKER, dir, 1);
 	}
-
 }

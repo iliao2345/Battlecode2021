@@ -1,4 +1,4 @@
-package explore_test;
+package membrane2;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -27,12 +27,12 @@ public class Politician {
 //			}
 //		}
     	if (Info.enemy_ecs.length>0) {
-    		Flag.is_gas = false;
+    		Phase.is_gas = false;
     		RobotInfo closest = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
     		Pathing.stick(closest.location);
     	}
     	if (Action.can_still_move &&  Info.neutral_ecs.length>0) {  // try to convert neutral ecs
-    		Flag.is_gas = false;
+    		Phase.is_gas = false;
     		RobotInfo closest = Info.closest_robot(Team.NEUTRAL, RobotType.ENLIGHTENMENT_CENTER);
     		if (!Info.loc.isWithinDistanceSquared(closest.location, RobotType.POLITICIAN.actionRadiusSquared)) {
     			Pathing.stick(closest.location);
@@ -60,9 +60,22 @@ public class Politician {
         		Pathing.stick(closest.location);
     		}
     	}
-    	if (Action.can_still_move) {
-    		Flag.is_gas = true;
+    	if (!Phase.is_membrane && !Phase.is_gas) {  // converted from slanderer
+    		Phase.is_gas = true;
+    	}
+    	if (Phase.is_gas && Membrane.touching_membrane) {
+    		Phase.condense();
+    	}
+    	if (Phase.is_gas && Action.can_still_move) {
     		Gas.attack();
+    	}
+    	if (Phase.is_membrane && Action.can_still_move) {
+    		if (Membrane.push_signal>0) {
+    			Membrane.advance();
+    		}
+    		else {
+        		Membrane.heal();
+    		}
     	}
 		Flag.set_default_patrol();
     }

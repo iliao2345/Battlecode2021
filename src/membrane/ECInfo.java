@@ -1,4 +1,4 @@
-package explore_test;
+package membrane;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -26,7 +26,7 @@ public class ECInfo {
 	public static void update() throws GameActionException {
 		enemy_data_to_relay = 0;
 		if (ids!=null) {
-			for (int i=0; i<100; i++) {
+			for (int i=0; i<300; i++) {
 				if (!rc.canGetFlag(ids.data)) {
 					if (ids.next==ids) {
 						ids = null;
