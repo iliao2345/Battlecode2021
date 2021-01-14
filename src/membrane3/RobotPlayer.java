@@ -1,4 +1,4 @@
-package explore_test;
+package membrane3;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -10,7 +10,6 @@ import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
 import battlecode.common.Team;
-import explore_test.RobotPlayer;
 
 public strictfp class RobotPlayer {
     static RobotController rc;
@@ -26,6 +25,7 @@ public strictfp class RobotPlayer {
         while (true) {
             try {
             	Info.update();
+            	if (rc.getRoundNum()>3000) {rc.resign();}
             	if (Info.ready) {
             		switch (rc.getType()) {
             		case ENLIGHTENMENT_CENTER: EnlightenmentCenter.act(); break;
@@ -52,9 +52,7 @@ public strictfp class RobotPlayer {
                 System.out.println(Info.y);
                 e.printStackTrace();
                 Clock.yield();
-                rc.setIndicatorDot(Info.loc, 255, 255, 255);
-                Clock.yield();
-                rc.resign();
+//                rc.resign();
             }
         }
     }
