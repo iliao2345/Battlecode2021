@@ -4,6 +4,7 @@ import battlecode.common.*;
 public class CombatInfo {
 	public static int EC_UNIT_EQUIVALENT = 100;
 	public static int NEUTRAL_EC_UNIT_EQUIVALENT = 50;
+	public static int TARGETTER_UNBLOCK_EQUIVALENT = 10;
 	
 	public static RobotController rc;
 	public static int last_round_updated_empower_costs = -1;  // for computing self empowerment
@@ -91,8 +92,8 @@ public class CombatInfo {
 	}
 	
 	public static double[][] compute_move_gains(RobotInfo empowering_robot) {  // computes the difference in optimal conviction gains for the empowering robot for every possible own robot move
-		int[][] inside_empower_outcomes = compute_empower_gains(empowering_robot, Info.sensable_robots, new RobotInfo(Info.id, Info.friendly, Info.type, Info.influence, Info.conviction, Info.loc));
-		int[][] outside_empower_outcomes = compute_empower_gains(empowering_robot, Info.sensable_robots, null);
+		int[][] inside_empower_outcomes = compute_empower_gains(empowering_robot, Info.restricted_sensable_robots, new RobotInfo(Info.id, Info.friendly, Info.type, Info.influence, Info.conviction, Info.loc));
+		int[][] outside_empower_outcomes = compute_empower_gains(empowering_robot, Info.restricted_sensable_robots, null);
 
 		inside_gains_1 = inside_empower_outcomes[1][0]*Info.unit_price+inside_empower_outcomes[2][0];
 		inside_gains_2 = inside_empower_outcomes[1][1]*Info.unit_price+inside_empower_outcomes[2][1];
@@ -140,6 +141,13 @@ public class CombatInfo {
 	}
 	
 	public static int[][] compute_empower_gains(RobotInfo empowering_robot, RobotInfo[] considered_robots, RobotInfo additional_robot) {
+		if (empowering_robot.conviction<=GameConstants.EMPOWER_TAX) {
+			return new int[][] {
+				{1, 1, 1, 1, 1, 1},  // these will always be greater than 0, for division by 0 reasons
+				{0, 0, 0, 0, 0, 0},
+				{-empowering_robot.conviction, -empowering_robot.conviction, -empowering_robot.conviction, -empowering_robot.conviction, -empowering_robot.conviction, -empowering_robot.conviction}
+			};
+		}
 		MapLocation empower_location = empowering_robot.location;
 		int n_1 = 0;
 		int n_2 = 0;
@@ -205,6 +213,7 @@ public class CombatInfo {
 		int costs_8 = -empowering_robot.conviction;
 		int costs_9 = -empowering_robot.conviction;
 		for (int i=considered_robots.length; --i>=0;) {
+			if (Clock.getBytecodesLeft()<5000) {break;}
 			RobotInfo robot = considered_robots[i];
 			if (empowering_robot.team==robot.team) {
 				switch (robot.type) {
@@ -234,6 +243,7 @@ public class CombatInfo {
 					}
 					break;}
 				case POLITICIAN: {
+					if (robot.influence==robot.conviction) {break;} 
 					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
@@ -261,6 +271,7 @@ public class CombatInfo {
 					}
 					break;}
 				case MUCKRAKER: {
+					if (robot.influence==robot.conviction) {break;} 
 					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
@@ -316,6 +327,7 @@ public class CombatInfo {
 				}
 			}
 			else {
+				int kills_equivalent = (robot.type==RobotType.POLITICIAN)? 2 : 1;
 				switch (robot.type) {
 				case ENLIGHTENMENT_CENTER: {
 					int conviction = robot.conviction;
@@ -344,57 +356,84 @@ public class CombatInfo {
 					}
 					break;}
 				case POLITICIAN: {
+					for (int j=Info.n_friendly_ecs; --j>=0;) {
+						if (robot.location.isWithinDistanceSquared(Info.friendly_ecs[j].location, 2)) {kills_equivalent++;}
+					}
+					for (int j=Info.n_enemy_ecs; --j>=0;) {
+						if (robot.location.isWithinDistanceSquared(Info.enemy_ecs[j].location, 2)) {kills_equivalent++;}
+					}
+					for (int j=Info.n_targetters; --j>=0;) {
+						if (robot.location.isWithinDistanceSquared(Info.targetters[j].location, 1)) {kills_equivalent+=TARGETTER_UNBLOCK_EQUIVALENT;}
+					}
 					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
-					case 1: {kills_1 += (damage_1>conviction)?2:0; costs_1 += Math.min(damage_1, influence+conviction);
-					 kills_2 += (damage_2>conviction)?2:0; costs_2 += Math.min(damage_2, influence+conviction);
-					 kills_4 += (damage_4>conviction)?2:0; costs_4 += Math.min(damage_4, influence+conviction);
-					 kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 2: {kills_2 += (damage_2>conviction)?2:0; costs_2 += Math.min(damage_2, influence+conviction);
-					 kills_4 += (damage_4>conviction)?2:0; costs_4 += Math.min(damage_4, influence+conviction);
-					 kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 4: {kills_4 += (damage_4>conviction)?2:0; costs_4 += Math.min(damage_4, influence+conviction);
-					 kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 5: {kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 8: {kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 9: {kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 1: {kills_1 += (damage_1>conviction)?kills_equivalent:0; costs_1 += Math.min(damage_1, influence+conviction);
+					 kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, influence+conviction);
+					 kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, influence+conviction);
+					 kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 2: {kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, influence+conviction);
+					 kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, influence+conviction);
+					 kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 4: {kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, influence+conviction);
+					 kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 5: {kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 8: {kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 9: {kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
 					}
 					break;}
 				case MUCKRAKER: {
-					int influence = robot.influence;
+					if (empowering_robot.team==Info.friendly) {
+						for (int j=Info.n_friendly_ecs; --j>=0;) {
+							if (robot.location.isWithinDistanceSquared(Info.friendly_ecs[j].location, 2)) {kills_equivalent++;}
+						}
+						for (int j=Info.n_enemy_ecs; --j>=0;) {
+							if (robot.location.isWithinDistanceSquared(Info.enemy_ecs[j].location, 2)) {kills_equivalent++;}  //--
+						}
+					}
+					else if (empowering_robot.team==Info.enemy) {
+						for (int j=Info.n_friendly_ecs; --j>=0;) {
+							if (robot.location.isWithinDistanceSquared(Info.friendly_ecs[j].location, 2)) {kills_equivalent++;}  //--
+						}
+						for (int j=Info.n_enemy_ecs; --j>=0;) {
+							if (robot.location.isWithinDistanceSquared(Info.enemy_ecs[j].location, 2)) {kills_equivalent++;}
+						}
+					}
+					for (int j=Info.n_targetters; --j>=0;) {
+						if (robot.location.isWithinDistanceSquared(Info.targetters[j].location, 1)) {kills_equivalent+=TARGETTER_UNBLOCK_EQUIVALENT;}
+					}
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
-					case 1: {kills_1 += (damage_1>conviction)?1:0; costs_1 += Math.min(damage_1, conviction);
-					kills_2 += (damage_2>conviction)?1:0; costs_2 += Math.min(damage_2, conviction);
-					kills_4 += (damage_4>conviction)?1:0; costs_4 += Math.min(damage_4, conviction);
-					kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 2: {kills_2 += (damage_2>conviction)?1:0; costs_2 += Math.min(damage_2, conviction);
-					kills_4 += (damage_4>conviction)?1:0; costs_4 += Math.min(damage_4, conviction);
-					kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 4: {kills_4 += (damage_4>conviction)?1:0; costs_4 += Math.min(damage_4, conviction);
-					kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 5: {kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 8: {kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 9: {kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 1: {kills_1 += (damage_1>conviction)?kills_equivalent:0; costs_1 += Math.min(damage_1, conviction);
+					kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, conviction);
+					kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, conviction);
+					kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 2: {kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, conviction);
+					kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, conviction);
+					kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 4: {kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, conviction);
+					kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 5: {kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 8: {kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 9: {kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
 					}
 					break;}
 				}
@@ -430,6 +469,7 @@ public class CombatInfo {
 					}
 					break;}
 				case POLITICIAN: {
+					if (robot.influence==robot.conviction) {break;} 
 					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
@@ -457,6 +497,7 @@ public class CombatInfo {
 					}
 					break;}
 				case MUCKRAKER: {
+					if (robot.influence==robot.conviction) {break;} 
 					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
@@ -512,6 +553,14 @@ public class CombatInfo {
 				}
 			}
 			else {
+
+				int kills_equivalent = (robot.type==RobotType.POLITICIAN)? 2 : 1;
+				for (int j=Info.n_friendly_ecs; --j>=0;) {
+					if (robot.location.isWithinDistanceSquared(Info.friendly_ecs[j].location, 2)) {kills_equivalent++;}
+				}
+				for (int j=Info.n_enemy_ecs; --j>=0;) {
+					if (robot.location.isWithinDistanceSquared(Info.enemy_ecs[j].location, 2)) {kills_equivalent++;}
+				}
 				switch (robot.type) {
 				case ENLIGHTENMENT_CENTER: {
 					int conviction = robot.conviction;
@@ -543,54 +592,53 @@ public class CombatInfo {
 					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
-					case 1: {kills_1 += (damage_1>conviction)?2:0; costs_1 += Math.min(damage_1, influence+conviction);
-					 kills_2 += (damage_2>conviction)?2:0; costs_2 += Math.min(damage_2, influence+conviction);
-					 kills_4 += (damage_4>conviction)?2:0; costs_4 += Math.min(damage_4, influence+conviction);
-					 kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 2: {kills_2 += (damage_2>conviction)?2:0; costs_2 += Math.min(damage_2, influence+conviction);
-					 kills_4 += (damage_4>conviction)?2:0; costs_4 += Math.min(damage_4, influence+conviction);
-					 kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 4: {kills_4 += (damage_4>conviction)?2:0; costs_4 += Math.min(damage_4, influence+conviction);
-					 kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 5: {kills_5 += (damage_5>conviction)?2:0; costs_5 += Math.min(damage_5, influence+conviction);
-					 kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 8: {kills_8 += (damage_8>conviction)?2:0; costs_8 += Math.min(damage_8, influence+conviction);
-					 kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
-					case 9: {kills_9 += (damage_9>conviction)?2:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 1: {kills_1 += (damage_1>conviction)?kills_equivalent:0; costs_1 += Math.min(damage_1, influence+conviction);
+					 kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, influence+conviction);
+					 kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, influence+conviction);
+					 kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 2: {kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, influence+conviction);
+					 kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, influence+conviction);
+					 kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 4: {kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, influence+conviction);
+					 kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 5: {kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, influence+conviction);
+					 kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 8: {kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, influence+conviction);
+					 kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
+					case 9: {kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, influence+conviction); break;}
 					}
 					break;}
 				case MUCKRAKER: {
-					int influence = robot.influence;
 					int conviction = robot.conviction;
 					switch (Info.loc.distanceSquaredTo(robot.location)) {
-					case 1: {kills_1 += (damage_1>conviction)?1:0; costs_1 += Math.min(damage_1, conviction);
-					kills_2 += (damage_2>conviction)?1:0; costs_2 += Math.min(damage_2, conviction);
-					kills_4 += (damage_4>conviction)?1:0; costs_4 += Math.min(damage_4, conviction);
-					kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 2: {kills_2 += (damage_2>conviction)?1:0; costs_2 += Math.min(damage_2, conviction);
-					kills_4 += (damage_4>conviction)?1:0; costs_4 += Math.min(damage_4, conviction);
-					kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 4: {kills_4 += (damage_4>conviction)?1:0; costs_4 += Math.min(damage_4, conviction);
-					kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 5: {kills_5 += (damage_5>conviction)?1:0; costs_5 += Math.min(damage_5, conviction);
-					kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 8: {kills_8 += (damage_8>conviction)?1:0; costs_8 += Math.min(damage_8, conviction);
-					kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
-					case 9: {kills_9 += (damage_9>conviction)?1:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 1: {kills_1 += (damage_1>conviction)?kills_equivalent:0; costs_1 += Math.min(damage_1, conviction);
+					kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, conviction);
+					kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, conviction);
+					kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 2: {kills_2 += (damage_2>conviction)?kills_equivalent:0; costs_2 += Math.min(damage_2, conviction);
+					kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, conviction);
+					kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 4: {kills_4 += (damage_4>conviction)?kills_equivalent:0; costs_4 += Math.min(damage_4, conviction);
+					kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 5: {kills_5 += (damage_5>conviction)?kills_equivalent:0; costs_5 += Math.min(damage_5, conviction);
+					kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 8: {kills_8 += (damage_8>conviction)?kills_equivalent:0; costs_8 += Math.min(damage_8, conviction);
+					kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
+					case 9: {kills_9 += (damage_9>conviction)?kills_equivalent:0; costs_9 += Math.min(damage_9, conviction); break;}
 					}
 					break;}
 				}

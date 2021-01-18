@@ -25,7 +25,6 @@ public class Pathing {
     	return false;
     }
     public static boolean stick(MapLocation target, boolean[][] illegal_tiles) throws GameActionException {
-    	int initial_distance_squared = Info.loc.distanceSquaredTo(target);
     	Direction best_dir = null;
     	double best_passability = 0.1;
     	int best_distance = Integer.MAX_VALUE;
@@ -86,6 +85,7 @@ public class Pathing {
     public static MapLocation get_closer_target(MapLocation target, int iterations) throws GameActionException {  // computes how the target would approach us
     	if (!rc.canSenseLocation(target)) {return target;}
     	for (int i=0; i<iterations; i++) {
+    		if (Clock.getBytecodesLeft()<1500) {break;}
 	    	Direction best_dir = null;
 	    	double best_cost = Integer.MAX_VALUE;
 	    	for (Direction dir:Math2.UNIT_DIRECTIONS) {

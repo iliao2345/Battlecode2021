@@ -17,4 +17,12 @@ public class IntCycler {
 			next = this;
 		}
 	}
+	public IntCycler pop() {
+		if (next==this) {
+			return null;
+		}
+		last.next = next;
+		next.last = last;
+		return next;
+	}
 }

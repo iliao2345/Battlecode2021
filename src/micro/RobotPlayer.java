@@ -15,7 +15,7 @@ public strictfp class RobotPlayer {
         while (true) {
             try {
             	Info.update();
-            	if (rc.getRoundNum()>1000) {rc.resign();}
+            	if (rc.getRoundNum()>1500) {rc.resign();}
             	if (Info.ready) {
             		switch (rc.getType()) {
             		case ENLIGHTENMENT_CENTER: EnlightenmentCenter.act(); break;
@@ -36,7 +36,7 @@ public strictfp class RobotPlayer {
             	Flag.set();
             	Flag.display();
             	
-            	if (rc.getRoundNum()>Info.round_num) {throw new Exception("OUT OF BYTECODE!");}
+//            	if (rc.getRoundNum()>Info.round_num) {throw new Exception("OUT OF BYTECODE!");}
 
                 Clock.yield();
             } catch (Exception e) {
@@ -45,7 +45,7 @@ public strictfp class RobotPlayer {
                 System.out.println(Info.y);
                 e.printStackTrace();
                 Clock.yield();
-                rc.resign();
+//                rc.resign();
             }
         }
     }

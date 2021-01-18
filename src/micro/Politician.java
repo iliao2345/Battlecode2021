@@ -5,8 +5,32 @@ public class Politician {
 	public static RobotController rc;
 	
 	public static void act() throws GameActionException {
+		RobotInfo closest_enemy_ec = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
+		RobotInfo closest_neutral_ec = Info.closest_robot(Team.NEUTRAL, RobotType.ENLIGHTENMENT_CENTER);
+		if (Role.is_targetter) {  // override micro code to disable self-empower
+			Targetter.target(); return;
+		}
+		else if (Role.is_exterminator || Info.exterminate && Info.conviction>10) {  // override micro code to disable self-empower
+			Role.exterminate();
+		}
+		else if ((Role.is_guard || Info.n_friendly_ecs+Info.n_friendly_slanderers>0) && Info.ec_needs_guards && Info.conviction>10) {
+			Role.become_guard();
+		}
+		else if ((closest_enemy_ec!=null || closest_neutral_ec!=null) && (!Info.everything_buried || Role.is_burier) && !Info.exterminate) {
+			Role.bury();
+		}
+		else {
+			Role.attach_to_relay_chain();
+		}
+		if (Role.is_exterminator) {
+			if (Info.n_enemy_ecs>0) {Exterminator.lock_target(Info.enemy_ecs[0].location);}
+			if (Info.n_enemy_politicians>0) {Exterminator.lock_target(Info.enemy_politicians[0].location);}
+			if (Info.n_enemy_slanderers>0) {Exterminator.lock_target(Info.enemy_slanderers[0].location);}
+			if (Info.n_enemy_muckrakers>0) {Exterminator.lock_target(Info.enemy_muckrakers[0].location);}
+			Exterminator.exterminate();  // override micro code to disable self-empower
+		}
 		CombatInfo.compute_self_empower_gains();
-		double best_gains = CombatInfo.optimal_empower_gains;
+		double best_gains = (CombatInfo.optimal_empower_gains>0)?CombatInfo.optimal_empower_gains:Integer.MIN_VALUE;  // don't use conditional if we want to force suicide to save friendly units or disallow conversions
 		RobotInfo largest_nearby_politician = null;
 		int largest_conviction = Integer.MIN_VALUE;
 		for (int i=Info.n_friendly_politicians; --i>=0;) {
@@ -25,29 +49,17 @@ public class Politician {
 		boolean[][] negative_gain_tiles = new boolean[3][3];
 		if (largest_nearby_politician!=null) {
 			move_gains = CombatInfo.compute_move_gains(largest_nearby_politician);
-			for (Direction dir:Direction.allDirections()) {
-				if (dir==Direction.CENTER || rc.canMove(dir)) {
-					best_gains = Math.max(best_gains, move_gains[dir.dx+1][dir.dy+1]);
-					negative_gain_tiles[dir.dx+1][dir.dy+1] = move_gains[dir.dx+1][dir.dy+1]<0;
-				}
-			}
 		}
 		else {
 			best_gains = Math.max(best_gains, 0);
 		}
-		if (best_gains==CombatInfo.optimal_empower_gains) {
-			System.out.println(CombatInfo.kills_1);
-			System.out.println(CombatInfo.kills_2);
-			System.out.println(CombatInfo.kills_4);
-			System.out.println(CombatInfo.kills_5);
-			System.out.println(CombatInfo.kills_8);
-			System.out.println(CombatInfo.kills_9);
-			System.out.println(CombatInfo.costs_1);
-			System.out.println(CombatInfo.costs_2);
-			System.out.println(CombatInfo.costs_4);
-			System.out.println(CombatInfo.costs_5);
-			System.out.println(CombatInfo.costs_8);
-			System.out.println(CombatInfo.costs_9);
+		for (Direction dir:Direction.allDirections()) {
+			if (dir==Direction.CENTER || rc.canMove(dir)) {
+				best_gains = Math.max(best_gains, move_gains[dir.dx+1][dir.dy+1]);
+				negative_gain_tiles[dir.dx+1][dir.dy+1] = move_gains[dir.dx+1][dir.dy+1]<0;
+			}
+		}
+		if (best_gains==CombatInfo.optimal_empower_gains && best_gains>0) {  // use != if we want to force suicide to save friendly units or disallow conversions
 			rc.empower(CombatInfo.optimal_empower_radius); return;
 		}
 		if (best_gains!=0) {
@@ -59,19 +71,34 @@ public class Politician {
 				}
 			}
 		}
-		else {
+		if (best_gains==CombatInfo.optimal_empower_gains && best_gains<0) {  // use != if we want to force suicide to save friendly units or disallow conversions
+			return;
+		}
+		if (Role.is_relay_chain) { // check if seen a burier
 			Role.attach_to_relay_chain();
-			if (Info.n_enemy_ecs>0) {
-				RelayChain.lock_target(Info.enemy_ecs[0].location);
-			}
+			if (!Info.everything_buried && Info.n_buriers>0) {RelayChain.lock_target(Info.weak_burier.location);}
 			if (RelayChain.extend(negative_gain_tiles)) {return;}
 			return;
 		}
-		throw new GameActionException(null, "Best gain action computed but not found!");
+		else if (Role.is_guard) {
+			Guard.defend(); return;
+		}
+		else if (Role.is_burier) {
+			Burier.bury(negative_gain_tiles); return;
+		}
 	}
 	
-	public static void pause() {
-		
+	public static void pause() throws GameActionException {
+		if (Info.round_num == Info.spawn_round) {
+			for (int i=Info.n_friendly_ecs; --i>=0;) {
+				if (!Info.loc.isAdjacentTo(Info.friendly_ecs[i].location)) {continue;}
+				int flag = rc.getFlag(Info.friendly_ecs[i].ID);
+				if ((flag>>17)%2==1) {
+					Role.target(new MapLocation(Info.x + ((flag>>11)%64*2-Info.x+12800064)%128-64, Info.y + ((flag>>5)%64*2-Info.y+12800064)%128-64));
+					break;
+				}
+			}
+		}
 	}
 
 }

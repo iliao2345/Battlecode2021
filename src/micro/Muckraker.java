@@ -5,6 +5,23 @@ public class Muckraker {
 	public static RobotController rc;
 	
 	public static void act() throws GameActionException {
+		RobotInfo closest_enemy_ec = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
+		RobotInfo closest_neutral_ec = Info.closest_robot(Team.NEUTRAL, RobotType.ENLIGHTENMENT_CENTER);
+		RobotInfo closest_enemy_slanderer = Info.closest_robot(Info.enemy, RobotType.SLANDERER);
+    	if (closest_enemy_slanderer!=null) {
+    		if (Info.loc.distanceSquaredTo(closest_enemy_slanderer.location)<=RobotType.MUCKRAKER.actionRadiusSquared) {
+    			Action.expose(closest_enemy_slanderer);
+    		}
+			Role.unassign_all();
+			Pathing.target(closest_enemy_slanderer.location, new boolean[3][3], 1);
+			return;
+    	}
+		else if ((closest_enemy_ec!=null || closest_neutral_ec!=null) && (!Info.everything_buried || Role.is_burier) && !Info.exterminate) {
+			Role.bury();
+		}
+		else {
+			Role.attach_to_relay_chain();
+		}
 		double best_gains = Integer.MIN_VALUE;
 		RobotInfo largest_nearby_politician = null;
 		int largest_conviction = Integer.MIN_VALUE;
@@ -24,15 +41,15 @@ public class Muckraker {
 		boolean[][] negative_gain_tiles = new boolean[3][3];
 		if (largest_nearby_politician!=null) {
 			move_gains = CombatInfo.compute_move_gains(largest_nearby_politician);
-			for (Direction dir:Direction.allDirections()) {
-				if (dir==Direction.CENTER || rc.canMove(dir)) {
-					best_gains = Math.max(best_gains, move_gains[dir.dx+1][dir.dy+1]);
-					negative_gain_tiles[dir.dx+1][dir.dy+1] = move_gains[dir.dx+1][dir.dy+1]<0;
-				}
-			}
 		}
 		else {
 			best_gains = Math.max(best_gains, 0);
+		}
+		for (Direction dir:Direction.allDirections()) {
+			if (dir==Direction.CENTER || rc.canMove(dir)) {
+				best_gains = Math.max(best_gains, move_gains[dir.dx+1][dir.dy+1]);
+				negative_gain_tiles[dir.dx+1][dir.dy+1] = move_gains[dir.dx+1][dir.dy+1]<0;
+			}
 		}
 		if (best_gains!=0) {
 			for (Direction dir:Direction.allDirections()) {
@@ -43,11 +60,12 @@ public class Muckraker {
 				}
 			}
 		}
+		else if (Role.is_burier) {
+			Burier.bury(negative_gain_tiles); return;
+		}
 		else {
 			Role.attach_to_relay_chain();
-			if (Info.n_enemy_ecs>0) {
-				RelayChain.lock_target(Info.enemy_ecs[0].location);
-			}
+			if (!Info.everything_buried && Info.n_buriers>0) {RelayChain.lock_target(Info.weak_burier.location);}
 			if (RelayChain.extend(negative_gain_tiles)) {return;}
 			return;
 		}

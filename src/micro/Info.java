@@ -6,6 +6,8 @@ public class Info {
 	public static Team friendly;
 	public static Team enemy;
 	public static int id;
+//	public static boolean skip_a_turn;
+	public static int spawn_round;
 	
 	public static boolean ready;
 	public static MapLocation loc;
@@ -19,7 +21,8 @@ public class Info {
 	public static double enemy_empower_buff;
 	public static double tile_cost;
 	public static Direction last_move_direction = Math2.UNIT_DIRECTIONS[(int)(Math.random()*8)];
-	public static RobotInfo[] sensable_robots;
+	public static int n_sensable_robots;
+	public static RobotInfo[] restricted_sensable_robots;
 	public static RobotInfo[] friendly_politicians = new RobotInfo[96];
 	public static RobotInfo[] friendly_slanderers = new RobotInfo[96];
 	public static RobotInfo[] friendly_muckrakers = new RobotInfo[96];
@@ -29,6 +32,11 @@ public class Info {
 	public static RobotInfo[] enemy_muckrakers = new RobotInfo[96];
 	public static RobotInfo[] enemy_ecs = new RobotInfo[20];
 	public static RobotInfo[] neutral_ecs = new RobotInfo[20];
+	public static RobotInfo[] relayers = new RobotInfo[96];
+	public static RobotInfo[] guards = new RobotInfo[96];
+	public static RobotInfo[] buriers = new RobotInfo[96];
+	public static RobotInfo[] targetters = new RobotInfo[96];
+	public static RobotInfo[] exterminators = new RobotInfo[96];
 	public static int n_friendly_politicians;
 	public static int n_friendly_slanderers;
 	public static int n_friendly_muckrakers;
@@ -38,6 +46,11 @@ public class Info {
 	public static int n_enemy_muckrakers;
 	public static int n_enemy_ecs;
 	public static int n_neutral_ecs;
+	public static int n_relayers;
+	public static int n_guards;
+	public static int n_buriers;
+	public static int n_targetters;
+	public static int n_exterminators;
 	public static RobotInfo closest_friendly_politician;
 	public static RobotInfo closest_friendly_slanderer;
 	public static RobotInfo closest_friendly_muckraker;
@@ -47,11 +60,18 @@ public class Info {
 	public static RobotInfo closest_enemy_muckraker;
 	public static RobotInfo closest_enemy_ec;
 	public static RobotInfo closest_neutral_ec;
-	public static IntCycler friendly_ec_ids = null;
-	public static int n_friendly_ec_ids = 0;
-	public static double unit_price = GameConstants.EMPOWER_TAX+1;  // retrieved from the EC
+	public static IntCycler tracked_friendly_ec_ids = null;
+	public static IntCycler tracked_friendly_ec_x = null;
+	public static IntCycler tracked_friendly_ec_y = null;
+	public static int n_tracked_friendly_ecs = 0;
+	public static double unit_price = 10;  // retrieved from the EC
+	public static boolean ec_needs_guards;
+	public static double crowdedness;
+	public static boolean exterminate;
+	public static boolean everything_buried;
+	public static RobotInfo weak_burier;
 	
-	public static void initialize(RobotController rc) {
+	public static void initialize(RobotController rc) throws GameActionException {
 		Info.rc = rc;
 		CombatInfo.rc = rc;
 		Flag.rc = rc;
@@ -63,6 +83,10 @@ public class Info {
 		Pathing.rc = rc;
 		Role.rc = rc;
 		RelayChain.rc = rc;
+		Guard.rc = rc;
+		Burier.rc = rc;
+		Targetter.rc = rc;
+		Exterminator.rc = rc;
 		ECInfo.rc = rc;
 		friendly = rc.getTeam();
 		if (friendly==Team.A) {enemy=Team.B;}
@@ -71,21 +95,35 @@ public class Info {
 		if (rc.getType()==RobotType.ENLIGHTENMENT_CENTER) {
 			ECInfo.initialize();
 		}
+		spawn_round = rc.getRoundNum();
 	}
 	
 	public static void update() throws GameActionException {
-		ready = rc.isReady();
 		loc = rc.getLocation();
 		x = loc.x;
 		y = loc.y;
 		type = rc.getType();
 		round_num = rc.getRoundNum();
+		ready = rc.isReady();
+		if (round_num==spawn_round && type==RobotType.SLANDERER) {ready = false; return;}  // initialize some large arrays
 		influence = rc.getInfluence();
 		conviction = rc.getConviction();
 		empower_buff = rc.getEmpowerFactor(Info.friendly, 0);
 		enemy_empower_buff = rc.getEmpowerFactor(Info.friendly, 0);
 		tile_cost = 1/rc.sensePassability(loc);
-		sensable_robots = rc.senseNearbyRobots();
+		restricted_sensable_robots = rc.senseNearbyRobots();
+		n_sensable_robots = restricted_sensable_robots.length;
+		if (restricted_sensable_robots.length>24) {restricted_sensable_robots = rc.senseNearbyRobots(17);}
+		if (restricted_sensable_robots.length>24) {restricted_sensable_robots = rc.senseNearbyRobots(8);}
+		closest_friendly_politician = null;
+		closest_friendly_slanderer = null;
+		closest_friendly_muckraker = null;
+		closest_friendly_ec = null;
+		closest_enemy_politician = null;
+		closest_enemy_slanderer = null;
+		closest_enemy_muckraker = null;
+		closest_enemy_ec = null;
+		closest_neutral_ec = null;
 		n_friendly_politicians = 0;
 		n_friendly_slanderers = 0;
 		n_friendly_muckrakers = 0;
@@ -95,12 +133,57 @@ public class Info {
 		n_enemy_muckrakers = 0;
 		n_enemy_ecs = 0;
 		n_neutral_ecs = 0;
-		for (RobotInfo robot:sensable_robots) {
+		n_relayers = 0;
+		n_guards = 0;
+		n_buriers = 0;
+		n_targetters = 0;
+		n_exterminators = 0;
+		everything_buried = true;
+		weak_burier = null;
+		for (RobotInfo robot:restricted_sensable_robots) {
 			if (robot.getTeam()==friendly) {
 				switch (robot.getType()) {
 				case POLITICIAN: {
 					friendly_politicians[n_friendly_politicians] = robot;
 					n_friendly_politicians++;
+					int flag = rc.getFlag(robot.ID);
+					if (flag>>23==1) {
+						relayers[n_relayers] = robot;
+						n_relayers++;
+//						rc.setIndicatorDot(robot.location, 0, 0, 255);
+						break;
+					}
+					else if (flag>>22==1) {
+						guards[n_guards] = robot;
+						n_guards++;
+//						rc.setIndicatorDot(robot.location, 0, 255, 0);
+						break;
+					}
+					else if (flag>>21==1) {
+						buriers[n_buriers] = robot;
+						n_buriers++;
+//						rc.setIndicatorDot(robot.location, 0, 0, 0);
+						if (flag%2==1) {everything_buried = false; weak_burier = robot;}
+						break;
+					}
+					else if (flag>>20==1) {
+						targetters[n_targetters] = robot;
+						n_targetters++;
+//						rc.setIndicatorDot(robot.location, 255, 0, 0);
+						break;
+					}
+					else if (flag>>19==1) {
+						exterminators[n_exterminators] = robot;
+						n_exterminators++;
+//						rc.setIndicatorDot(robot.location, 128, 0, 0);
+						break;
+					}
+					else if (flag==1) {
+						friendly_slanderers[n_friendly_slanderers] = robot;
+						n_friendly_slanderers++;
+//						rc.setIndicatorDot(robot.location, 255, 255, 0);
+						break;
+					}
 					break;}
 				case SLANDERER: {
 					friendly_slanderers[n_friendly_slanderers] = robot;
@@ -109,18 +192,39 @@ public class Info {
 				case MUCKRAKER: {
 					friendly_muckrakers[n_friendly_muckrakers] = robot;
 					n_friendly_muckrakers++;
+					int flag = rc.getFlag(robot.ID);
+					if (flag>>23==1) {
+						relayers[n_relayers] = robot;
+						n_relayers++;
+//						rc.setIndicatorDot(robot.location, 0, 0, 255);
+						break;
+					}
+					else if (flag>>21==1) {
+						buriers[n_buriers] = robot;
+						n_buriers++;
+//						rc.setIndicatorDot(robot.location, 0, 0, 0);
+						if (flag%2==1) {everything_buried = false; weak_burier = robot;}
+						break;
+					}
 					break;}
 				case ENLIGHTENMENT_CENTER: {
 					friendly_ecs[n_friendly_ecs] = robot;
 					n_friendly_ecs++;
 					boolean found = false;
-					for (int i=n_friendly_ec_ids; --i>=0;) {
-						if (friendly_ec_ids.data==robot.ID) {
+					for (int i=n_tracked_friendly_ecs; --i>=0;) {
+						if (tracked_friendly_ec_ids.data==robot.ID) {
 							found = true; break;
 						}
-						friendly_ec_ids = friendly_ec_ids.next;
+						tracked_friendly_ec_ids = tracked_friendly_ec_ids.next;
+						tracked_friendly_ec_x = tracked_friendly_ec_x.next;
+						tracked_friendly_ec_y = tracked_friendly_ec_y.next;
 					}
-					if (!found) {n_friendly_ec_ids++; friendly_ec_ids = new IntCycler(robot.ID, friendly_ec_ids);}
+					if (!found) {
+						n_tracked_friendly_ecs++;
+						tracked_friendly_ec_ids = new IntCycler(robot.ID, tracked_friendly_ec_ids);
+						tracked_friendly_ec_x = new IntCycler(robot.location.x, tracked_friendly_ec_x);
+						tracked_friendly_ec_y = new IntCycler(robot.location.y, tracked_friendly_ec_y);
+					}
 					break;}
 				}
 			}
@@ -149,27 +253,49 @@ public class Info {
 				n_neutral_ecs++;
 			}
 		}
+		if (round_num==spawn_round && type==RobotType.POLITICIAN && n_friendly_ecs==0) {ready = false; return;}  // initialize some large arrays if just got converted
+		if (n_buriers==0) {everything_buried = false;}
 		double new_total_unit_price = 0;
-		for (int i=n_friendly_ec_ids; --i>=0;) {
-			if (!rc.canGetFlag(friendly_ec_ids.data)) {
-				if (n_friendly_ec_ids>1) {
-					friendly_ec_ids.next.last = friendly_ec_ids.last;
-					friendly_ec_ids.last.next = friendly_ec_ids.next;
-					friendly_ec_ids = friendly_ec_ids.next;
+		ec_needs_guards = false;
+//		exterminate = false;
+		exterminate = round_num>1200;
+		for (int i=n_tracked_friendly_ecs; --i>=0;) {
+			if (!rc.canGetFlag(tracked_friendly_ec_ids.data)) {
+				if (n_tracked_friendly_ecs>1) {
+					tracked_friendly_ec_ids.next.last = tracked_friendly_ec_ids.last;
+					tracked_friendly_ec_ids.last.next = tracked_friendly_ec_ids.next;
+					tracked_friendly_ec_ids = tracked_friendly_ec_ids.next;
+					tracked_friendly_ec_x.next.last = tracked_friendly_ec_x.last;
+					tracked_friendly_ec_x.last.next = tracked_friendly_ec_x.next;
+					tracked_friendly_ec_x = tracked_friendly_ec_x.next;
+					tracked_friendly_ec_y.next.last = tracked_friendly_ec_y.last;
+					tracked_friendly_ec_y.last.next = tracked_friendly_ec_y.next;
+					tracked_friendly_ec_y = tracked_friendly_ec_y.next;
 				}
 				else {
-					friendly_ec_ids = null;
+					tracked_friendly_ec_ids = null;
+					tracked_friendly_ec_x = null;
+					tracked_friendly_ec_y = null;
 				}
-				n_friendly_ec_ids--;
+				n_tracked_friendly_ecs--;
 			}
 			else {
-				int flag = rc.getFlag(friendly_ec_ids.data);
-				new_total_unit_price += flag&32;
+				int flag = rc.getFlag(tracked_friendly_ec_ids.data);
+				new_total_unit_price += 4*(Math.exp((flag%32)/4.0)-1);
+				ec_needs_guards = ec_needs_guards || flag>>23==1;
+				exterminate = exterminate || (flag>>22)%2==1;
+				tracked_friendly_ec_ids = tracked_friendly_ec_ids.next;
+				tracked_friendly_ec_x = tracked_friendly_ec_x.next;
+				tracked_friendly_ec_y = tracked_friendly_ec_y.next;
 			}
 		}
-		if (n_friendly_ec_ids>0) {
-			unit_price = new_total_unit_price / n_friendly_ec_ids;
+		if (n_tracked_friendly_ecs>0) {
+			unit_price = new_total_unit_price / n_tracked_friendly_ecs;
 		}
+		int n_directions_restricted = 0;
+		if (!rc.onTheMap(loc.add(Direction.EAST)) || !rc.onTheMap(loc.add(Direction.WEST))) {n_directions_restricted++;}
+		if (!rc.onTheMap(loc.add(Direction.NORTH)) || !rc.onTheMap(loc.add(Direction.SOUTH))) {n_directions_restricted++;}
+		crowdedness = rc.senseNearbyRobots(2).length/((n_directions_restricted>0)?((n_directions_restricted==2)?3.0:5.0):8.0);
 		
 		//  This must be last
 		if (rc.getType()==RobotType.ENLIGHTENMENT_CENTER) {
@@ -177,6 +303,18 @@ public class Info {
 		}
 		if (Role.is_relay_chain) {
 			RelayChain.update();
+		}
+		else if (Role.is_guard) {
+			Guard.update();
+		}
+		else if (Role.is_burier) {
+			Burier.update();
+		}
+		else if (Role.is_targetter) {
+			Targetter.update();
+		}
+		else if (Role.is_exterminator) {
+			Exterminator.update();
 		}
 	}
 	public static RobotInfo closest_robot(Team relevant_team, RobotType relevant_type) {
