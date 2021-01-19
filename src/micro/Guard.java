@@ -8,11 +8,9 @@ public class Guard {
 	public static RobotController rc;
 	
 	public static MapLocation last_seen_defense_location = null;
-	public static boolean enough_guards;
-	public static boolean too_many_guards;
+	public static boolean too_dense;
 	public static double guard_pressure_dx;
 	public static double guard_pressure_dy;
-	public static boolean[][] too_close_or_far;
 	public static MapLocation closest_defense_location;
 	public static int closest_defense_distance_squared;
 	public static RobotInfo closest_enemy_muckraker;
@@ -59,8 +57,7 @@ public class Guard {
 				n_guards++;
 			}
 		}
-		enough_guards = n_guards >= 3;
-		too_many_guards = n_guards >= 7;
+		too_dense = n_guards >= 4;
 		closest_enemy_muckraker = Info.closest_robot(Info.enemy, RobotType.MUCKRAKER);
 		if (closest_enemy_muckraker!=null && !closest_defense_location.isWithinDistanceSquared(closest_enemy_muckraker.location, 63)) {
 			closest_enemy_muckraker = null;
@@ -130,7 +127,7 @@ public class Guard {
 				Pathing.target(closest_defense_location, new boolean[3][3], -1); return;
 			}
 		}
-		else if (too_many_guards) {  // too close
+		else if (too_dense) {  // too close
 			if (guard_pressure_dx!=0||guard_pressure_dy!=0) {
 		    	double r = Math.sqrt(guard_pressure_dx*guard_pressure_dx+guard_pressure_dy*guard_pressure_dy);
 		    	guard_pressure_dx = guard_pressure_dx/r;

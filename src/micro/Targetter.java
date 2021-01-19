@@ -2,9 +2,11 @@ package micro;
 import battlecode.common.*;
 
 public class Targetter {
+	public static int TARGET_ALL_ECS_TIME = 1100;
 	public static RobotController rc;
 
 	public static MapLocation target_loc;
+	public static Team target_team = null;
 	
 	public static void update() throws GameActionException {
 		if (Info.loc.isWithinDistanceSquared(target_loc, 5)) {
@@ -14,6 +16,7 @@ public class Targetter {
 				if (Info.enemy_ecs[i].conviction>best_target_size) {
 					best_target_loc = Info.enemy_ecs[i].location;
 					best_target_size = Info.enemy_ecs[i].conviction;
+					target_team = Info.enemy;
 				}
 			}
 			if (best_target_loc==null) {
@@ -22,6 +25,7 @@ public class Targetter {
 					if (Info.friendly_ecs[i].conviction<best_target_size) {
 						best_target_loc = Info.friendly_ecs[i].location;
 						best_target_size = Info.friendly_ecs[i].conviction;
+						target_team = Info.friendly;
 					}
 				}
 			}
@@ -31,6 +35,7 @@ public class Targetter {
 					if (Info.neutral_ecs[i].conviction<best_target_size) {
 						best_target_loc = Info.neutral_ecs[i].location;
 						best_target_size = Info.neutral_ecs[i].conviction;
+						target_team = Team.NEUTRAL;
 					}
 				}
 			}
@@ -45,11 +50,18 @@ public class Targetter {
 	}
 		
 	public static void target() throws GameActionException {
-		if (Info.loc.isWithinDistanceSquared(target_loc, 1) && rc.senseNearbyRobots(1).length==1) {
-			rc.empower(1);
+		CombatInfo.compute_self_empower_gains();
+		if (CombatInfo.kills_1>CombatInfo.NEUTRAL_EC_UNIT_EQUIVALENT-2) {rc.empower(1); return;}
+		if (CombatInfo.kills_2>CombatInfo.NEUTRAL_EC_UNIT_EQUIVALENT-2) {rc.empower(2); return;}
+		if (CombatInfo.kills_4>CombatInfo.NEUTRAL_EC_UNIT_EQUIVALENT-2) {rc.empower(4); return;}
+		if (CombatInfo.kills_5>CombatInfo.NEUTRAL_EC_UNIT_EQUIVALENT-2) {rc.empower(5); return;}
+		if (CombatInfo.kills_8>CombatInfo.NEUTRAL_EC_UNIT_EQUIVALENT-2) {rc.empower(8); return;}
+		if (CombatInfo.kills_9>CombatInfo.NEUTRAL_EC_UNIT_EQUIVALENT-2) {rc.empower(9); return;}
+		if (Info.loc.isWithinDistanceSquared(target_loc, 1)) {
+			if (target_team==Info.enemy) {rc.empower(1); Clock.yield(); return;}
+			else if (rc.senseNearbyRobots(1).length==1) {rc.empower(1); Clock.yield(); return;}
 		}
 		else if (Info.loc.isWithinDistanceSquared(target_loc, 36)) {
-
 			boolean[][] illegal_or_near_targetter_tiles = new boolean[3][3];
 			for (Direction dir:Direction.allDirections()) {  // try to get more than 2 away from targetters
 				MapLocation adjacent = Info.loc.add(dir);
@@ -70,7 +82,7 @@ public class Targetter {
 			Pathing.stick(target_loc, illegal_or_near_targetter_tiles);
 		}
 		else {
-			Pathing.target(target_loc, new boolean[3][3], 1);
+			Pathing.stick(target_loc, new boolean[3][3]);
 		}
 	}
 }

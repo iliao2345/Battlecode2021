@@ -44,15 +44,28 @@ public class EnlightenmentCenter {
 				}
 			}
 			int conviction = Math.max(26, min_cost*3+GameConstants.EMPOWER_TAX);
-			if (best_direction!=null && rc.canBuildRobot(RobotType.POLITICIAN, best_direction, conviction)) {
-				Action.buildRobot(RobotType.POLITICIAN, best_direction, conviction);
-				return;
+			if (best_direction!=null) {
+				if (conviction < ECInfo.max_safe_build_limit) {
+					Action.buildRobot(RobotType.POLITICIAN, best_direction, conviction); return;
+				}
+				else {
+					ECInfo.bid_amount++; return;  // be the team's voter if trapped
+				}
 			}
 		}
-		if (Info.enemy_politicians.length+Info.enemy_muckrakers.length==0 && Info.conviction*rc.getEmpowerFactor(Info.friendly, 11)-GameConstants.EMPOWER_TAX > Info.conviction && !ECInfo.exterminate_flag) {
+		// self-empower if no risk of opponent absorption
+		if (Info.enemy_politicians.length+Info.enemy_muckrakers.length<ECInfo.n_spawn_tiles_on_map-2 && Info.conviction*rc.getEmpowerFactor(Info.friendly, 11)-GameConstants.EMPOWER_TAX > Info.conviction && !ECInfo.exterminate_flag) {
 			for (Direction dir : Direction.cardinalDirections()) {
-	            if (rc.canBuildRobot(RobotType.POLITICIAN, dir, Info.conviction/3)) {
-					Action.buildTargetter(dir, Info.conviction/3, Info.loc); return;
+	            if (rc.canBuildRobot(RobotType.POLITICIAN, dir, Info.conviction)) {
+					Action.buildTargetter(dir, Info.conviction, Info.loc); return;
+	            }
+	        }
+		}
+		// self-empower if massive buff
+		if ((Info.conviction*rc.getEmpowerFactor(Info.friendly, 11)-GameConstants.EMPOWER_TAX)/4 > Info.conviction && !ECInfo.exterminate_flag) {
+			for (Direction dir : Direction.cardinalDirections()) {
+	            if (rc.canBuildRobot(RobotType.POLITICIAN, dir, Info.conviction)) {
+					Action.buildTargetter(dir, Info.conviction, Info.loc); return;
 	            }
 	        }
 		}
@@ -67,34 +80,63 @@ public class EnlightenmentCenter {
 		}
 		Direction build_direction = null;
 		int n_build_directions = 0;
-		Direction dir = ECInfo.last_build_direction;
-		for (int i=8; --i>=0;) {
-			dir = dir.rotateLeft().rotateLeft().rotateLeft();
-			Direction left = dir.rotateLeft();
-			Direction right = dir.rotateRight();
-            if (rc.canBuildRobot(RobotType.POLITICIAN, dir, 1) && !targetter_present[left.dx+1][left.dy+1] && !targetter_present[right.dx+1][right.dy+1]) {
-                n_build_directions++;
-                build_direction = dir;
-            }
-        }
+		if (ECInfo.max_safe_build_limit<0) {  // if under conversion threat, try to build as close as possible to the largest nearby enemy politician
+			RobotInfo largest_enemy_politician = null;
+			int largest_conviction = Integer.MIN_VALUE;
+			for (int i=Info.n_enemy_politicians; --i>=0;) {
+				if (Info.enemy_politicians[i].conviction>largest_conviction) {
+					largest_enemy_politician = Info.enemy_politicians[i];
+					largest_conviction = largest_enemy_politician.conviction;
+				}
+			}
+			int closest_distance_squared = Integer.MAX_VALUE;
+			for (Direction dir:Math2.UNIT_DIRECTIONS) {
+				if (rc.canBuildRobot(RobotType.POLITICIAN, dir, 1)) {
+	                n_build_directions++;
+	                if (Info.loc.add(dir).distanceSquaredTo(largest_enemy_politician.location)<closest_distance_squared) {
+		                build_direction = dir;
+	                	closest_distance_squared = Info.loc.add(dir).distanceSquaredTo(largest_enemy_politician.location);
+	                }
+	            }
+	        }
+		}
+		else {  // if not under conversion threat, try to spread units
+			Direction dir = ECInfo.last_build_direction;
+			for (int i=8; --i>=0;) {
+				dir = dir.rotateLeft().rotateLeft().rotateLeft();
+				Direction left = dir.rotateLeft();
+				Direction right = dir.rotateRight();
+	            if (rc.canBuildRobot(RobotType.POLITICIAN, dir, 1) && !targetter_present[left.dx+1][left.dy+1] && !targetter_present[right.dx+1][right.dy+1]) {
+	                n_build_directions++;
+	                build_direction = dir;
+	            }
+	        }
+		}
 		if (n_build_directions==0) {return;}
 		if (ECInfo.guard_flag && !ECInfo.enough_guards) {  // guard slanderers at all costs
-			int test_conviction = Math.max(1, ECInfo.sampled_muckraker_influence+GameConstants.EMPOWER_TAX+2);
-			if (test_conviction < Info.conviction) {
+			int test_conviction = Math.max(14, ECInfo.sampled_muckraker_influence+GameConstants.EMPOWER_TAX+2);
+			if (test_conviction < ECInfo.max_safe_build_limit) {
 				if (rc.canBuildRobot(RobotType.POLITICIAN, build_direction, test_conviction)) {
+					rc.setIndicatorDot(Info.loc.add(build_direction), 255, 255, 0);
 					Action.buildRobot(RobotType.POLITICIAN, build_direction, test_conviction); return;
 				}
 			}
 		}
 		int test_conviction = Math.max(70, (int)(1.1*ECInfo.weakest_ec_influence)+GameConstants.EMPOWER_TAX);
-		if (ECInfo.weakest_ec_loc!=null && Info.conviction > test_conviction) {  // send monster sized politicians to finish off a weak EC
+		if (ECInfo.weakest_ec_loc!=null && ECInfo.max_safe_build_limit > test_conviction) {  // send monster sized politicians to finish off a weak EC
+			if (rc.canBuildRobot(RobotType.POLITICIAN, build_direction, test_conviction)) {
+				Action.buildTargetter(build_direction, test_conviction, ECInfo.weakest_ec_loc); return;
+			}
+		}
+		test_conviction = Math.max(300, Info.conviction/2);
+		if (ECInfo.weakest_ec_loc!=null && ECInfo.max_safe_build_limit > test_conviction && ECInfo.target_all_ecs_flag) {  // send monster sized politicians to finish off a weak EC
 			if (rc.canBuildRobot(RobotType.POLITICIAN, build_direction, test_conviction)) {
 				Action.buildTargetter(build_direction, test_conviction, ECInfo.weakest_ec_loc); return;
 			}
 		}
 		if (ECInfo.exterminate_flag) {  // perform final extermination
-			test_conviction = Math.max(20, (Info.conviction+Math.max(0, 1400-Info.round_num)*ECInfo.total_income)
-										  /(int)Math.max(1, (1400-Info.round_num)/2*rc.sensePassability(Info.loc)));
+			test_conviction = Math.max(20, (Info.conviction+Math.max(0, Exterminator.EXTERMINATE_FINISH_MONEY_TIME-Info.round_num)*ECInfo.total_income)
+										  /(int)Math.max(1, (Exterminator.EXTERMINATE_FINISH_MONEY_TIME-Info.round_num)/2*rc.sensePassability(Info.loc)));
 			if (test_conviction > 0) {
 				if (rc.canBuildRobot(RobotType.POLITICIAN, build_direction, test_conviction)) {
 					Action.buildRobot(RobotType.POLITICIAN, build_direction, test_conviction); return;
@@ -102,21 +144,17 @@ public class EnlightenmentCenter {
 			}
 			return;
 		}
-		if (ECInfo.desired_guard_flag) {  // make slanderers if conviction is abundant
-			test_conviction = Math2.embezzle_floor(Math.min(949, Info.conviction));
-			if (test_conviction > 0) {
+		if (ECInfo.desired_guard_flag && ECInfo.enough_guards) {  // make slanderers if conviction is abundant
+			System.out.println(ECInfo.max_safe_build_limit);
+			test_conviction = Math2.embezzle_floor(Math.min(949, ECInfo.max_safe_build_limit));
+			System.out.println(test_conviction);
+			if (test_conviction > 0 && ECInfo.max_safe_build_limit > test_conviction) {
 				if (rc.canBuildRobot(RobotType.SLANDERER, build_direction, test_conviction)) {
 					Action.buildRobot(RobotType.SLANDERER, build_direction, test_conviction); return;
 				}
 			}
 		}
-		test_conviction = Math.max(1, (int) (Math.ceil((ECInfo.sampled_bury_guard_influence-GameConstants.EMPOWER_TAX)/2.0)/0.7+1));
-		if (test_conviction < 30) {  // rush using muckrakers which are slightly too large to double kill
-			if (rc.canBuildRobot(RobotType.MUCKRAKER, build_direction, test_conviction)) {
-				Action.buildRobot(RobotType.MUCKRAKER, build_direction, test_conviction); return;
-			}
-		}
-		if (rc.canBuildRobot(RobotType.MUCKRAKER, build_direction, 1)) {
+		if (rc.canBuildRobot(RobotType.MUCKRAKER, build_direction, 1) && !ECInfo.majority_crowded) {
 			Action.buildRobot(RobotType.MUCKRAKER, build_direction, 1); return;
 		}
 	}

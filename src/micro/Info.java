@@ -70,6 +70,8 @@ public class Info {
 	public static boolean exterminate;
 	public static boolean everything_buried;
 	public static RobotInfo weak_burier;
+	public static int last_team_votes = 0;
+	public static int team_votes = 0;
 	
 	public static void initialize(RobotController rc) throws GameActionException {
 		Info.rc = rc;
@@ -111,6 +113,8 @@ public class Info {
 		empower_buff = rc.getEmpowerFactor(Info.friendly, 0);
 		enemy_empower_buff = rc.getEmpowerFactor(Info.friendly, 0);
 		tile_cost = 1/rc.sensePassability(loc);
+		last_team_votes = team_votes;
+		team_votes = rc.getTeamVotes();
 		restricted_sensable_robots = rc.senseNearbyRobots();
 		n_sensable_robots = restricted_sensable_robots.length;
 		if (restricted_sensable_robots.length>24) {restricted_sensable_robots = rc.senseNearbyRobots(17);}
@@ -257,8 +261,7 @@ public class Info {
 		if (n_buriers==0) {everything_buried = false;}
 		double new_total_unit_price = 0;
 		ec_needs_guards = false;
-//		exterminate = false;
-		exterminate = round_num>1200;
+		exterminate = round_num>Exterminator.EXTERMINATE_START_TIME;
 		for (int i=n_tracked_friendly_ecs; --i>=0;) {
 			if (!rc.canGetFlag(tracked_friendly_ec_ids.data)) {
 				if (n_tracked_friendly_ecs>1) {

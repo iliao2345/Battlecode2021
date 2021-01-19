@@ -6,9 +6,7 @@ public strictfp class RobotPlayer {
 
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
-
-        // This is the RobotController object. You use it to perform actions from this robot,
-        // and to get information on its current status.
+    	
         RobotPlayer.rc = rc;
         Info.initialize(rc);
 

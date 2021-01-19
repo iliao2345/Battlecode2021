@@ -5,6 +5,17 @@ public class Politician {
 	public static RobotController rc;
 	
 	public static void act() throws GameActionException {
+		if (Info.round_num==1499) {
+			CombatInfo.compute_self_empower_gains();
+			int best_costs = CombatInfo.costs_9;
+			int best_radius = 9;
+			if (CombatInfo.costs_8>best_costs) {best_costs = CombatInfo.costs_8; best_radius = 8;}
+			if (CombatInfo.costs_5>best_costs) {best_costs = CombatInfo.costs_5; best_radius = 5;}
+			if (CombatInfo.costs_4>best_costs) {best_costs = CombatInfo.costs_4; best_radius = 4;}
+			if (CombatInfo.costs_2>best_costs) {best_costs = CombatInfo.costs_2; best_radius = 2;}
+			if (CombatInfo.costs_1>best_costs) {best_costs = CombatInfo.costs_1; best_radius = 1;}
+			rc.empower(best_radius); Clock.yield(); return;
+		}
 		RobotInfo closest_enemy_ec = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
 		RobotInfo closest_neutral_ec = Info.closest_robot(Team.NEUTRAL, RobotType.ENLIGHTENMENT_CENTER);
 		if (Role.is_targetter) {  // override micro code to disable self-empower
@@ -23,11 +34,12 @@ public class Politician {
 			Role.attach_to_relay_chain();
 		}
 		if (Role.is_exterminator) {
-			if (Info.n_enemy_ecs>0) {Exterminator.lock_target(Info.enemy_ecs[0].location);}
-			if (Info.n_enemy_politicians>0) {Exterminator.lock_target(Info.enemy_politicians[0].location);}
-			if (Info.n_enemy_slanderers>0) {Exterminator.lock_target(Info.enemy_slanderers[0].location);}
 			if (Info.n_enemy_muckrakers>0) {Exterminator.lock_target(Info.enemy_muckrakers[0].location);}
+			if (Info.n_enemy_slanderers>0) {Exterminator.lock_target(Info.enemy_slanderers[0].location);}
+			if (Info.n_enemy_politicians>0) {Exterminator.lock_target(Info.enemy_politicians[0].location);}
+			if (Info.n_enemy_ecs>0) {Exterminator.lock_target(Info.enemy_ecs[0].location);}
 			Exterminator.exterminate();  // override micro code to disable self-empower
+			return;
 		}
 		CombatInfo.compute_self_empower_gains();
 		double best_gains = (CombatInfo.optimal_empower_gains>0)?CombatInfo.optimal_empower_gains:Integer.MIN_VALUE;  // don't use conditional if we want to force suicide to save friendly units or disallow conversions
@@ -60,7 +72,7 @@ public class Politician {
 			}
 		}
 		if (best_gains==CombatInfo.optimal_empower_gains && best_gains>0) {  // use != if we want to force suicide to save friendly units or disallow conversions
-			rc.empower(CombatInfo.optimal_empower_radius); return;
+			rc.empower(CombatInfo.optimal_empower_radius); Clock.yield(); return;
 		}
 		if (best_gains!=0) {
 			for (Direction dir:Direction.allDirections()) {

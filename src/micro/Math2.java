@@ -38,7 +38,7 @@ public class Math2 {
 	}
 	public static int embezzle_floor(int conviction) {
 		while (true) {
-			if (Math.floor((conviction-1)*(1/50.0+0.03*Math.exp(-0.001*(conviction-1)))) < Math.floor((conviction+1)*(1/50.0+0.03*Math.exp(-0.001*(conviction+1))))) {
+			if (Math.floor((conviction-1)*(1/50.0+0.03*Math.exp(-0.001*(conviction-1)))) < Math.floor(conviction*(1/50.0+0.03*Math.exp(-0.001*conviction)))) {
 				return conviction;
 			}
 			conviction--;

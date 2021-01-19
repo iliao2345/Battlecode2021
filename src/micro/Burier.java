@@ -7,6 +7,7 @@ public class Burier {
 	public static boolean need_support;
 	public static int sampled_politician_conviction;
 	public static RobotInfo target_ec;
+	public static int target_ec_kill_conviction;
 	
 	public static void update() throws GameActionException {
     	target_ec = Info.closest_robot(Info.enemy, RobotType.ENLIGHTENMENT_CENTER);
@@ -15,15 +16,34 @@ public class Burier {
         	if (target_ec==null) {
         		Role.attach_to_relay_chain(); return;
         	}
+        	else {
+        		target_ec_kill_conviction = target_ec.conviction;
+        	}
+    	}
+    	else {
+    		target_ec_kill_conviction = target_ec.conviction*3;
     	}
 		need_support = false;
 		if (target_ec.team==Info.enemy) {
-			for (Direction dir:Math2.UNIT_DIRECTIONS) {
+			loop1: for (Direction dir:Math2.UNIT_DIRECTIONS) {
 				MapLocation check_loc = target_ec.location.add(dir);
 				if (rc.canSenseLocation(check_loc)) {
-					if (rc.senseRobotAtLocation(check_loc)==null) {
+					RobotInfo robot = rc.senseRobotAtLocation(check_loc);
+					if (robot==null) {
 						need_support = true;
-						break;
+						break loop1;
+					}
+					else if (robot.team==Info.enemy) {
+						for (Direction dir2:Math2.UNIT_DIRECTIONS) {
+							MapLocation check_loc2 = check_loc.add(dir2);
+							if (!target_ec.location.isAdjacentTo(check_loc2) && rc.canSenseLocation(check_loc2)) {
+								RobotInfo robot2 = rc.senseRobotAtLocation(check_loc2);
+								if (robot2==null || robot2.team==Info.enemy) {
+									need_support = true;
+									break loop1;
+								}
+							}
+						}
 					}
 				}
 			}
@@ -38,7 +58,7 @@ public class Burier {
 	
 	public static boolean bury(boolean[][] illegal_tiles) throws GameActionException {
 		if (Info.crowdedness>0.5 && Info.exterminate && Info.conviction<=10 && Info.type==RobotType.POLITICIAN) {
-    		rc.empower(1); return true;
+    		rc.empower(1); Clock.yield(); return true;
     	}
 		boolean[][] illegal_or_near_targetter_tiles = new boolean[3][3];
 		for (Direction dir:Direction.allDirections()) {  // try to get more than 2 away from targetters

@@ -27,29 +27,27 @@ public class Flag {
 		}
 		else if (Info.type==RobotType.POLITICIAN || Info.type==RobotType.MUCKRAKER) {
 			if (Role.is_relay_chain) {
-				bits = new int[] {1, 6, 5, 8, 1, 1, 1, 1};
+				bits = new int[] {1, 6, 5, 8, 3, 1};
 				values = new int[] {
 						1,
 						0,
 						RelayChain.source_dist,
 						(int)(RelayChain.target_dist),
-						0,
-						0,
-						0,
-						0
+						RelayChain.muckraker_warning_level,
+						(Info.crowdedness>0.5)?1:0
 				};
 			}
 			else if (Role.is_guard) {
 				int muckraker_conviction = 0;
 				if (Guard.closest_enemy_muckraker!=null) {
-					muckraker_conviction = Math.min(15, (int)Math.ceil(2*Math.log(Guard.closest_enemy_muckraker.conviction/2.0+1)));
+					muckraker_conviction = Math.min(15, (int)Math.ceil(4*Math.log(Guard.closest_enemy_muckraker.conviction/4.0+1)));
 				}
 				bits = new int[] {2, 17, 4, 1};
 				values = new int[] {
 						1,
 						0,
 						muckraker_conviction,
-						Guard.enough_guards?1:0
+						0
 				};
 			}
 			else if (Role.is_burier) {
@@ -58,8 +56,8 @@ public class Flag {
 						1,
 						(Burier.target_ec.location.x%128)/2,
 						(Burier.target_ec.location.y%128)/2,
-						Math.min(15, Math.max(0, (int)Math.ceil(2*Math.log(Burier.sampled_politician_conviction/2.0+1)) - 10)),
-						Math.min(15, (int)Math.ceil(2*Math.log(Burier.target_ec.conviction/10.0+1))),
+						Math.min(15, (int)Math.ceil(2*Math.log(Math.max(0, Burier.sampled_politician_conviction - 10)/2.0+1))),
+						Math.min(15, (int)Math.ceil(2*Math.log(Burier.target_ec_kill_conviction/10.0+1))),
 						Burier.need_support?1:0
 				};
 			}

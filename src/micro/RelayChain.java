@@ -14,6 +14,7 @@ public class RelayChain {
 	public static MapLocation target_loc;
 	public static double momentum_dx;
 	public static double momentum_dy;
+	public static int muckraker_warning_level;
 
     public static void update() throws GameActionException {
     	RobotInfo robot_to_target = null;
@@ -31,9 +32,13 @@ public class RelayChain {
     			source_dist = (flag>>12)%32;
     			robot_to_source = robot;
     		}
+    		if ((flag>>1)%8<muckraker_warning_level) {
+    			muckraker_warning_level = (flag>>1)%8;
+    		}
     	}
     	target_dist = Math.min(target_dist+((Info.crowdedness>0.26)?255:1), 255);
     	source_dist = Math.min(source_dist+1, 31);
+    	muckraker_warning_level = Math.max(0, muckraker_warning_level-1);
     	if (Info.n_friendly_ecs>0) {
     		source_dist = 0;
     		robot_to_source = Info.friendly_ecs[0];
@@ -65,6 +70,10 @@ public class RelayChain {
     	else {
     		source_side_connected = false;
     	}
+    	RobotInfo closest_enemy_muckraker = Info.closest_robot(Info.enemy, RobotType.MUCKRAKER);
+    	if (closest_enemy_muckraker!=null) {
+    		muckraker_warning_level = 7;
+    	}
     }
     
     public static void lock_target(MapLocation loc) throws GameActionException {
@@ -75,9 +84,9 @@ public class RelayChain {
     
     public static boolean extend(boolean[][] illegal_tiles) throws GameActionException {
     	if (Info.crowdedness>0.5 && Info.exterminate && Info.conviction<=10 && Info.type==RobotType.POLITICIAN) {
-    		rc.empower(1); return true;
+    		rc.empower(1); Clock.yield(); return true;
     	}
-    	if (target_dist>=255 || Info.exterminate) {
+    	if (target_dist>=255) {
     		double dx = 0;
     		double dy = 0;
 			for (int i=Info.n_relayers; --i>=0;) {
@@ -101,6 +110,9 @@ public class RelayChain {
 	    	}
 			MapLocation target_loc = Info.loc.translate((int)(10*momentum_dx), (int)(10*momentum_dy));
 			return Pathing.target(target_loc, illegal_tiles, 1);
+    	}
+    	else if (Info.exterminate) {
+    		return Pathing.target(target_loc, illegal_tiles, -1);
     	}
     	if (source_side_connected) {
     		boolean[][] illegal_or_disconnected_tiles = new boolean[3][3];
