@@ -1,31 +1,19 @@
-package membrane2;
-
-import battlecode.common.Clock;
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.GameActionExceptionType;
-import battlecode.common.GameConstants;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-import battlecode.common.RobotInfo;
-import battlecode.common.RobotType;
-import battlecode.common.Team;
+package nerfedbuff;
+import battlecode.common.*;
 
 public strictfp class RobotPlayer {
     static RobotController rc;
 
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
-
-        // This is the RobotController object. You use it to perform actions from this robot,
-        // and to get information on its current status.
+    	
         RobotPlayer.rc = rc;
         Info.initialize(rc);
 
         while (true) {
             try {
             	Info.update();
-//            	if (rc.getRoundNum()>500) {rc.resign();}
+            	if (rc.getRoundNum()>1500) {rc.resign();}
             	if (Info.ready) {
             		switch (rc.getType()) {
             		case ENLIGHTENMENT_CENTER: EnlightenmentCenter.act(); break;
@@ -42,8 +30,14 @@ public strictfp class RobotPlayer {
             		case MUCKRAKER:            Muckraker.pause();           break;
             		}
             	}
+            	if (rc.getType()==RobotType.ENLIGHTENMENT_CENTER) {
+            		EnlightenmentCenter.bid();
+            	}
             	
+            	Flag.set();
             	Flag.display();
+            	
+//            	if (rc.getRoundNum()>Info.round_num) {throw new Exception("OUT OF BYTECODE!");}
 
                 Clock.yield();
             } catch (Exception e) {
@@ -52,9 +46,7 @@ public strictfp class RobotPlayer {
                 System.out.println(Info.y);
                 e.printStackTrace();
                 Clock.yield();
-                rc.setIndicatorDot(Info.loc, 255, 255, 255);
-                Clock.yield();
-                rc.resign();
+//                rc.resign();
             }
         }
     }
