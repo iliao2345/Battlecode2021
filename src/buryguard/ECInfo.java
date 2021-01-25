@@ -1,4 +1,4 @@
-package nerfedbuff;
+package buryguard;
 import battlecode.common.*;
 
 public class ECInfo {
@@ -44,10 +44,7 @@ public class ECInfo {
 	public static MapLocation targetted_loc;
 	public static boolean exterminate_flag = false;
 	public static Direction last_build_direction = Direction.EAST;
-	public static int[] sampled_muckraker_influences;
-	public static int sampled_muckraker_influence;
-	public static int n_sampled_muckraker_influences;
-	public static boolean map_filled;
+	public static boolean map_controlled;
 	public static boolean target_all_ecs_flag;
 	public static int bid_power = 1;
 	public static boolean last_bid_1 = false;
@@ -64,8 +61,6 @@ public class ECInfo {
 			}
 		}
 		open_spawn_tiles_required = Math.min(n_spawn_tiles_on_map, (int) Math.ceil(11*rc.sensePassability(rc.getLocation())/2)+1);
-		sampled_muckraker_influences = new int[1000];
-		n_sampled_muckraker_influences = 0;
 	}
 	
 	public static void update() throws GameActionException {
@@ -107,7 +102,7 @@ public class ECInfo {
 		for (int i=n_iterations; --i>=0;) {
 			if (rc.canGetFlag(relayer_ids.data)) {
 				int flag = rc.getFlag(relayer_ids.data);
-				if (flag>>22==1) {
+				if (flag>>23==1) {
 					relayer_xs.data = ((flag>>18)%32*4+1-Info.x+12800064)%128-64;
 					relayer_ys.data = ((flag>>13)%32*4+1-Info.y+12800064)%128-64;
 					relayer_ids = relayer_ids.next;
@@ -135,17 +130,12 @@ public class ECInfo {
 			}
 		}
 		if (Info.n_enemy_muckrakers>0) {min_muckraker_alert_distance = 0;}
-		n_sampled_muckraker_influences = 0;
 		n_iterations = Math.min(n_guard_ids, 30);
 		for (int i=n_iterations; --i>=0;) {
 			if (rc.canGetFlag(guard_ids.data)) {
 				int flag = rc.getFlag(guard_ids.data);
 				if (flag>>22==1) {
 					guard_ids = guard_ids.next;
-					if ((flag>>1)%16!=0) {
-						sampled_muckraker_influences[n_sampled_muckraker_influences] = (int) (4*(Math.exp((flag>>1)%16/4.0)-1));
-						n_sampled_muckraker_influences++;
-					}
 					continue;
 				}
 				else {
@@ -159,9 +149,6 @@ public class ECInfo {
 				guard_ids = guard_ids.pop();
 				n_guard_ids--;
 			}
-		}
-		if (n_sampled_muckraker_influences>0) {
-			sampled_muckraker_influence = sampled_muckraker_influences[(int)(Math.random()*n_sampled_muckraker_influences)];
 		}
 		if (make_targetter_timer==0) {  // give new targetters some time to set their flags, don't remove them immediately
 			for (int i=n_targetter_ids; --i>=0;) {
@@ -214,8 +201,11 @@ public class ECInfo {
 		}
 		all_ecs_buried = found_enemy_ec? new_all_ecs_buried : all_ecs_buried;
 		weakest_ec_influence = (int) (10*(Math.exp(weakest_ec_influence/8.0)-1));
-		map_filled = rc.getRobotCount()>0.8*32*32;
-		boolean map_dense = rc.getRobotCount()>0.6*32*32;
+		int min_pressure = Integer.MAX_VALUE;
+		for (int i=Info.n_relayers; --i>=0;) {
+			min_pressure = Math.min(min_pressure, (rc.getFlag(Info.relayers[i].ID)>>1)%32);
+		}
+		map_controlled = min_pressure>5 && Info.n_relayers>0;
 		for (int i=n_slanderer_ids; --i>=0;) {
 			if (!rc.canGetFlag(slanderer_ids.data)) {
 				slanderer_ids = slanderer_ids.pop();
@@ -250,11 +240,9 @@ public class ECInfo {
 		
 		unit_price = total_income_per_build*2;
 		exterminate_flag = Info.round_num>Exterminator.EXTERMINATE_START_TIME;
-		desired_guard_flag = (min_muckraker_alert_distance>15 && Info.round_num<100 && n_slanderer_ids<=0.1*n_relayer_ids || Info.round_num>400 && all_ecs_buried && map_dense) && Info.round_num<STOP_ECONOMY_TIME && !exterminate_flag;
-//		guard_flag = (desired_guard_flag || n_slanderer_ids>0) && Info.round_num>400 && !exterminate_flag;
-		guard_flag = true;
-//		enough_guards = n_guard_ids>1.5*n_slanderer_ids+15 || Info.round_num<400 && min_muckraker_alert_distance>15;
-		enough_guards = false;
+		desired_guard_flag = (min_muckraker_alert_distance>15 && Info.round_num<=25 && 8.9*n_slanderer_ids<=Info.round_num || Info.round_num>400 && map_controlled) && Info.round_num<STOP_ECONOMY_TIME && !exterminate_flag;
+		guard_flag = (desired_guard_flag || n_slanderer_ids>0) && Info.round_num>400 && !exterminate_flag;
+		enough_guards = n_guard_ids>1.5*n_slanderer_ids+15 || Info.round_num<400 && min_muckraker_alert_distance>15;
 		target_all_ecs_flag = Info.round_num>Targetter.TARGET_ALL_ECS_TIME;
 	}
 }

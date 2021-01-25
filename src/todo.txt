@@ -1,0 +1,4 @@
+things to fix:
+ - bidding scheme against Blue Dragon
+ - fix slanderer city build trigger
+ - fix guard empower when not within radius

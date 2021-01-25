@@ -1,4 +1,4 @@
-package nerfedbuff;
+package buryguard;
 import battlecode.common.*;
 
 public class EnlightenmentCenter {
@@ -27,7 +27,7 @@ public class EnlightenmentCenter {
 	            }
 	        }
 		}
-		else {  // if not under conversion threat, try to spread units and don't build next to targetters
+		else {  // if not under conversion threat, try to spread units
 			Direction dir = ECInfo.last_build_direction;
 			for (int i=8; --i>=0;) {
 				dir = dir.rotateLeft().rotateLeft().rotateLeft();
@@ -39,10 +39,9 @@ public class EnlightenmentCenter {
 		}
 		if (n_build_directions==0) {return;}
 		if (ECInfo.guard_flag && !ECInfo.enough_guards) {  // guard slanderers at all costs
-			int test_conviction = Math.max(14, ECInfo.sampled_muckraker_influence+GameConstants.EMPOWER_TAX+2);
+			int test_conviction = 20;
 			if (test_conviction < ECInfo.max_safe_build_limit) {
 				if (rc.canBuildRobot(RobotType.POLITICIAN, build_direction, test_conviction)) {
-					rc.setIndicatorDot(Info.loc.add(build_direction), 255, 255, 0);
 					Action.buildRobot(RobotType.POLITICIAN, build_direction, test_conviction); return;
 				}
 			}
@@ -112,9 +111,6 @@ public class EnlightenmentCenter {
 				if (conviction < ECInfo.max_safe_build_limit) {
 					Action.buildRobot(RobotType.POLITICIAN, best_direction, conviction); return;
 				}
-				else {
-					ECInfo.bid_power++; return;  // be the team's voter if trapped
-				}
 			}
 		}
 		if (ECInfo.exterminate_flag) {  // perform final extermination
@@ -135,13 +131,10 @@ public class EnlightenmentCenter {
 				}
 			}
 		}
-		if (Info.round_num<12 && rc.canBuildRobot(RobotType.POLITICIAN, build_direction, 1)) {
+		if (Info.round_num<10 && rc.canBuildRobot(RobotType.POLITICIAN, build_direction, 1)) {
 			Action.buildRobot(RobotType.POLITICIAN, build_direction, 1); return;
 		}
-//		if (Info.round_num>80 && rc.getEmpowerFactor(Info.friendly, 30)>1.5 && Math.random()<0.2 && rc.canBuildRobot(RobotType.POLITICIAN, build_direction, 20) && ECInfo.max_safe_build_limit>30) {
-//			Action.buildRobot(RobotType.POLITICIAN, build_direction, 20); return;
-//		}
-		if (rc.canBuildRobot(RobotType.MUCKRAKER, build_direction, 1) && !ECInfo.map_filled) {
+		if (rc.canBuildRobot(RobotType.MUCKRAKER, build_direction, 1) && !ECInfo.map_controlled) {
 			Action.buildRobot(RobotType.MUCKRAKER, build_direction, 1); return;
 		}
 	}
@@ -164,7 +157,7 @@ public class EnlightenmentCenter {
 				else {ECInfo.bid_power += 1.5;}
 				ECInfo.bid_power = Math.max(1, ECInfo.bid_power);
 				int bid_amount = (int) (5*(Math.exp(ECInfo.bid_power/5.0)-1));
-				if (ECInfo.map_filled) {bid_amount = Info.conviction/Math.max(rounds_left, bids_required)+ECInfo.passive_income - (int)(Math.log(Math.random()))+1;}
+				if (ECInfo.map_controlled) {bid_amount = 2*Info.conviction/Math.max(rounds_left, bids_required)+ECInfo.passive_income+ECInfo.embezzle_income/2 - (int)(Math.log(Math.random()))+1;}
 				if (bid_amount>ECInfo.max_safe_build_limit || Info.conviction<300) {
 					if (rc.canBid(1)) {rc.bid(1); ECInfo.last_bid_1 = true;}
 				}

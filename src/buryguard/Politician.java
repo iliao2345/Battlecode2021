@@ -1,4 +1,4 @@
-package nerfedbuff;
+package buryguard;
 import battlecode.common.*;
 
 public class Politician {
