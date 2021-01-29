@@ -251,10 +251,8 @@ public class ECInfo {
 		unit_price = total_income_per_build*2;
 		exterminate_flag = Info.round_num>Exterminator.EXTERMINATE_START_TIME;
 		desired_guard_flag = (min_muckraker_alert_distance>15 && Info.round_num<100 && n_slanderer_ids<=0.1*n_relayer_ids || Info.round_num>400 && all_ecs_buried && map_dense) && Info.round_num<STOP_ECONOMY_TIME && !exterminate_flag;
-//		guard_flag = (desired_guard_flag || n_slanderer_ids>0) && Info.round_num>400 && !exterminate_flag;
-		guard_flag = true;
-//		enough_guards = n_guard_ids>1.5*n_slanderer_ids+15 || Info.round_num<400 && min_muckraker_alert_distance>15;
-		enough_guards = false;
+		guard_flag = (desired_guard_flag || n_slanderer_ids>0) && Info.round_num>400 && !exterminate_flag;
+		enough_guards = n_guard_ids>1.5*n_slanderer_ids+15 || Info.round_num<400 && min_muckraker_alert_distance>15;
 		target_all_ecs_flag = Info.round_num>Targetter.TARGET_ALL_ECS_TIME;
 	}
 }

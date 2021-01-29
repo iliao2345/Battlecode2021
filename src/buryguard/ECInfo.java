@@ -177,11 +177,13 @@ public class ECInfo {
 				if (flag>>21==1) {
 					new_all_ecs_buried = new_all_ecs_buried && flag%2==0;
 					found_enemy_ec = true;
-					if ((flag>>13)%64<weakest_ec_influence && (flag>>13)%64!=0 && make_targetter_timer==0) {
+					int influence = (flag>>13)%64;
+					MapLocation loc = new MapLocation(Info.x + ((flag>>7)%64*2-Info.x+12800064)%128-64, Info.y + ((flag>>1)%64*2-Info.y+12800064)%128-64);
+					if ((influence<weakest_ec_influence || influence==weakest_ec_influence && Info.loc.distanceSquaredTo(weakest_ec_loc)>Info.loc.distanceSquaredTo(loc)) && influence%64!=0 && make_targetter_timer==0) {
 						int index = (flag>>1)%4096;
 						if (!targetter_exists[index] || Info.round_num>Targetter.TARGET_ALL_ECS_TIME) {
-							weakest_ec_influence = (flag>>13)%64;
-							weakest_ec_loc = new MapLocation(Info.x + ((flag>>7)%64*2-Info.x+12800064)%128-64, Info.y + ((flag>>1)%64*2-Info.y+12800064)%128-64);
+							weakest_ec_influence = influence;
+							weakest_ec_loc = loc;
 						}
 					}
 					burier_ids = burier_ids.next;
@@ -200,7 +202,12 @@ public class ECInfo {
 			}
 		}
 		all_ecs_buried = found_enemy_ec? new_all_ecs_buried : all_ecs_buried;
-		weakest_ec_influence = (int) (10*(Math.exp(weakest_ec_influence/8.0)-1));
+		weakest_ec_influence = (int) Math.ceil(10*(Math.exp(weakest_ec_influence/8.0)-1));
+		if (weakest_ec_loc!=null) {
+			System.out.println(weakest_ec_influence);
+			System.out.println(weakest_ec_loc.x);
+			System.out.println(weakest_ec_loc.y);
+		}
 		int min_pressure = Integer.MAX_VALUE;
 		for (int i=Info.n_relayers; --i>=0;) {
 			min_pressure = Math.min(min_pressure, (rc.getFlag(Info.relayers[i].ID)>>1)%32);
@@ -240,7 +247,7 @@ public class ECInfo {
 		
 		unit_price = total_income_per_build*2;
 		exterminate_flag = Info.round_num>Exterminator.EXTERMINATE_START_TIME;
-		desired_guard_flag = (min_muckraker_alert_distance>15 && Info.round_num<=25 && 8.9*n_slanderer_ids<=Info.round_num || Info.round_num>400 && map_controlled) && Info.round_num<STOP_ECONOMY_TIME && !exterminate_flag;
+		desired_guard_flag = (min_muckraker_alert_distance>15 && Info.round_num<=25 && 8.9*n_slanderer_ids<=Info.round_num && Info.conviction<0.8*weakest_ec_influence || Info.round_num>400 && map_controlled) && Info.round_num<STOP_ECONOMY_TIME && !exterminate_flag;
 		guard_flag = (desired_guard_flag || n_slanderer_ids>0) && Info.round_num>400 && !exterminate_flag;
 		enough_guards = n_guard_ids>1.5*n_slanderer_ids+15 || Info.round_num<400 && min_muckraker_alert_distance>15;
 		target_all_ecs_flag = Info.round_num>Targetter.TARGET_ALL_ECS_TIME;

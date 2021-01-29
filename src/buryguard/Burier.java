@@ -18,11 +18,11 @@ public class Burier {
         		Role.attach_to_relay_chain(); return;
         	}
         	else {
-        		target_ec_kill_conviction = target_ec.conviction;
+        		target_ec_kill_conviction = target_ec.conviction+1;
         	}
     	}
     	else {
-    		target_ec_kill_conviction = target_ec.conviction*3+40*(int) Math.ceil(GameConstants.PASSIVE_INFLUENCE_RATIO_ENLIGHTENMENT_CENTER*Math.sqrt(Info.round_num));
+    		target_ec_kill_conviction = 3*(target_ec.conviction+(int)((Math.sqrt((Info.loc.distanceSquaredTo(Info.spawn_location)))+10)*Math.ceil(GameConstants.PASSIVE_INFLUENCE_RATIO_ENLIGHTENMENT_CENTER*Math.sqrt(Info.round_num))));
     	}
 		if (Info.n_targetters>0) {
 			target_ec_kill_conviction = 0;  // override late targetting calls targetter already in sight to prevent EC sending two targetters

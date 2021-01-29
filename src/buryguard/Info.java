@@ -78,6 +78,7 @@ public class Info {
 	public static int high_x_bound;
 	public static int low_y_bound;
 	public static int high_y_bound;
+	public static MapLocation spawn_location;
 	
 	public static void initialize(RobotController rc) throws GameActionException {
 		Info.rc = rc;
@@ -114,6 +115,7 @@ public class Info {
 			if (rc.canSenseLocation(new MapLocation(rc.getLocation().x, low_y_bound-1))) {low_y_bound--;}
 			if (rc.canSenseLocation(new MapLocation(rc.getLocation().x, high_y_bound+1))) {high_y_bound++;}
 		}
+		spawn_location = rc.getLocation();
 	}
 	
 	public static void update() throws GameActionException {

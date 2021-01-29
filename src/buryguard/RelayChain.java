@@ -20,7 +20,7 @@ public class RelayChain {
     			pressure = (flag>>1)%32;
     		}
     	}
-    	pressure = Math.min(pressure+1, 31);  /////////////////////////// perhaps add 1/passibility rather than 1?
+    	pressure = Math.min(pressure+((Info.crowdedness>0.9)?3:1), 31);
     	if (Info.n_relayers==0) {pressure = 0;}
     	determine_if_surrounded: if (Info.n_relayers>0 && rc.senseNearbyRobots(Info.type.sensorRadiusSquared, Info.friendly).length<10) {
     		int dx = Info.relayers[0].location.x - Info.x;

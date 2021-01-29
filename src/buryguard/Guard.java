@@ -90,12 +90,6 @@ public class Guard {
 		if (closest_enemy_muckraker!=null) {
 			if (Info.loc.isWithinDistanceSquared(closest_enemy_muckraker.location, 9)) {
 				CombatInfo.compute_self_empower_gains();
-//				if (CombatInfo.damage_9 > closest_enemy_muckraker.conviction) {rc.empower(9); return;}
-//				if (CombatInfo.damage_8 > closest_enemy_muckraker.conviction) {rc.empower(8); return;}
-//				if (CombatInfo.damage_5 > closest_enemy_muckraker.conviction) {rc.empower(5); return;}
-//				if (CombatInfo.damage_4 > closest_enemy_muckraker.conviction) {rc.empower(4); return;}
-//				if (CombatInfo.damage_2 > closest_enemy_muckraker.conviction) {rc.empower(2); return;}
-//				if (CombatInfo.damage_1 > closest_enemy_muckraker.conviction) {rc.empower(1); return;}
 				if (Info.loc.isWithinDistanceSquared(closest_enemy_muckraker.location, 1)) {
 					rc.empower(1); return;
 				}

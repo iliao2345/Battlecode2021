@@ -10,7 +10,7 @@ public class Slanderer {
 	public static double momentum_dx = 0;
 	public static double momentum_dy = 0;
 	
-	public static void act() throws GameActionException{  ////////////////////////////////////////////////////////////////////////// not working correctly
+	public static void act() throws GameActionException{
 		if (Info.n_enemy_muckrakers>0) {
 			RobotInfo closest_enemy_muckraker = Info.closest_robot(Info.enemy, RobotType.MUCKRAKER);
 	    	double r = Math.sqrt(Info.loc.distanceSquaredTo(closest_enemy_muckraker.location));
@@ -18,31 +18,6 @@ public class Slanderer {
 	    	momentum_dy = (Info.y-closest_enemy_muckraker.location.y)/r*MOMENTUM_CAP;
 			Pathing.target(closest_enemy_muckraker.location, new boolean[3][3], -1); return;
 		}
-//		if (Info.n_guards==0) {
-//			double dx = 0;
-//    		double dy = 0;
-//			for (int i=Info.n_friendly_slanderers; --i>=0;) {
-//				if (Clock.getBytecodesLeft()>1700) {
-//    				MapLocation repel_loc = Info.friendly_slanderers[i].location;
-//    				dx -= 1000*(repel_loc.x-Info.x)/Info.loc.distanceSquaredTo(repel_loc);
-//    				dy -= 1000*(repel_loc.y-Info.y)/Info.loc.distanceSquaredTo(repel_loc);
-//				}
-//			}
-//			if (dx!=0||dy!=0) {
-//		    	double r = Math.sqrt(dx*dx+dy*dy);
-//		    	dx = dx/r;
-//		    	dy = dy/r;
-//			}
-//			momentum_dx += dx;
-//			momentum_dy += dy;
-//	    	double r = Math.sqrt(momentum_dx*momentum_dx+momentum_dy*momentum_dy);
-//	    	if (r>MOMENTUM_CAP) {
-//		    	momentum_dx = momentum_dx/r*MOMENTUM_CAP;
-//		    	momentum_dy = momentum_dy/r*MOMENTUM_CAP;
-//	    	}
-//			MapLocation target_loc = Info.loc.translate((int)(10*momentum_dx), (int)(10*momentum_dy));
-//			Pathing.target(target_loc, new boolean[3][3], 1); return;
-//		}
 		
 		MapLocation ec_location = new MapLocation(Info.tracked_friendly_ec_x.data, Info.tracked_friendly_ec_y.data);
 		Direction best_direction = null;  // get to spawn if possible through storage sites, and don't store near spawn

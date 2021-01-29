@@ -46,7 +46,7 @@ public class EnlightenmentCenter {
 				}
 			}
 		}
-		int test_conviction = (int)(Math.max(50, ECInfo.weakest_ec_influence)/Info.empower_buff)+GameConstants.EMPOWER_TAX+1;
+		int test_conviction = Math.max(50, ECInfo.weakest_ec_influence)+GameConstants.EMPOWER_TAX+1;
 		if (ECInfo.weakest_ec_loc!=null && ECInfo.max_safe_build_limit > test_conviction && (Info.n_adjacent_robots<Info.n_adjacent_tiles_on_map-1 || Info.n_adjacent_tiles_on_map-ECInfo.open_spawn_tiles<3)) {  // send monster sized politicians to finish off a weak EC
 			Direction build_direction2 = null;
 			int closest_distance_squared = Integer.MAX_VALUE;
@@ -157,7 +157,7 @@ public class EnlightenmentCenter {
 				else {ECInfo.bid_power += 1.5;}
 				ECInfo.bid_power = Math.max(1, ECInfo.bid_power);
 				int bid_amount = (int) (5*(Math.exp(ECInfo.bid_power/5.0)-1));
-				if (ECInfo.map_controlled) {bid_amount = 2*Info.conviction/Math.max(rounds_left, bids_required)+ECInfo.passive_income+ECInfo.embezzle_income/2 - (int)(Math.log(Math.random()))+1;}
+				if (ECInfo.map_controlled) {bid_amount = 3*Info.conviction/Math.min(rounds_left+5, bids_required+5)+ECInfo.passive_income+ECInfo.embezzle_income/5 - (int)(Math.log(Math.random()))+1;}
 				if (bid_amount>ECInfo.max_safe_build_limit || Info.conviction<300) {
 					if (rc.canBid(1)) {rc.bid(1); ECInfo.last_bid_1 = true;}
 				}

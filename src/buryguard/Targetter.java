@@ -16,14 +16,16 @@ public class Targetter {
 			move_out_of_the_way_flag = true;
 			MapLocation best_target_loc = null;
 			target_size = Integer.MAX_VALUE;
+			boolean can_capture_enemy = false;
 			for (int i=Info.n_enemy_ecs; --i>=0;) {
 				if (Info.enemy_ecs[i].conviction<target_size) {
 					best_target_loc = Info.enemy_ecs[i].location;
 					target_size = Info.enemy_ecs[i].conviction;
 					target_team = Info.enemy;
+					can_capture_enemy = can_capture_enemy || Info.conviction>3*target_size;
 				}
 			}
-			if (best_target_loc==null) {
+			if (best_target_loc==null || !can_capture_enemy) {
 				target_size = Integer.MAX_VALUE;
 				for (int i=Info.n_neutral_ecs; --i>=0;) {
 					if (Info.neutral_ecs[i].conviction<target_size) {
